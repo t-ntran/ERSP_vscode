@@ -3,8 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { IStatusbarService, StatusbarAlignment as MainThreadStatusBarAlignment } from 'vs/platform/statusbar/common/statusbar';
-import { IDisposable } from 'vs/base/common/lifecycle';
+import { IStatusbarService, StatusbarAlignment as MainThreadStatusBarAlignment, IStatusbarEntryAccessor } from 'vs/platform/statusbar/common/statusbar';
 import { MainThreadStatusBarShape, MainContext, IExtHostContext } from '../common/extHost.protocol';
 import { ThemeColor } from 'vs/platform/theme/common/themeService';
 import { extHostNamedCustomer } from 'vs/workbench/api/common/extHostCustomers';
@@ -13,37 +12,36 @@ import { ExtensionIdentifier } from 'vs/platform/extensions/common/extensions';
 @extHostNamedCustomer(MainContext.MainThreadStatusBar)
 export class MainThreadStatusBar implements MainThreadStatusBarShape {
 
-	private readonly _entries: { [id: number]: IDisposable };
+	private readonly entries: Map<number, IStatusbarEntryAccessor> = new Map();
 
 	constructor(
-		extHostContext: IExtHostContext,
-		@IStatusbarService private readonly _statusbarService: IStatusbarService
-	) {
-		this._entries = Object.create(null);
-	}
+		_extHostContext: IExtHostContext,
+		@IStatusbarService private readonly statusbarService: IStatusbarService
+	) { }
 
 	dispose(): void {
-		for (const key in this._entries) {
-			this._entries[key].dispose();
-		}
+		this.entries.forEach(entry => entry.dispose());
+		this.entries.clear();
 	}
 
 	$setEntry(id: number, extensionId: ExtensionIdentifier, text: string, tooltip: string, command: string, color: string | ThemeColor, alignment: MainThreadStatusBarAlignment, priority: number): void {
+		const props = { text, tooltip, command, color, extensionId };
 
-		// Dispose any old
-		this.$dispose(id);
-
-		// Add new
-		const entry = this._statusbarService.addEntry({ text, tooltip, command, color, extensionId }, alignment, priority);
-		this._entries[id] = entry;
+		let entry = this.entries.get(id);
+		if (!entry) {
+			entry = this.statusbarService.addEntry(props, alignment, priority);
+			this.entries.set(id, entry);
+		} else {
+			entry.update(props);
+		}
 	}
 
 	$dispose(id: number) {
-		const disposeable = this._entries[id];
-		if (disposeable) {
-			disposeable.dispose();
+		const entry = this.entries.get(id);
+		if (entry) {
+			entry.dispose();
 		}
 
-		delete this._entries[id];
+		this.entries.delete(id);
 	}
 }

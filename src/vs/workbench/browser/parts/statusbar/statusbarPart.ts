@@ -6,7 +6,7 @@
 import 'vs/css!./media/statusbarpart';
 import * as nls from 'vs/nls';
 import { toErrorMessage } from 'vs/base/common/errorMessage';
-import { dispose, IDisposable, toDisposable, combinedDisposable, Disposable } from 'vs/base/common/lifecycle';
+import { dispose, IDisposable, combinedDisposable, Disposable } from 'vs/base/common/lifecycle';
 import { OcticonLabel } from 'vs/base/browser/ui/octiconLabel/octiconLabel';
 import { Registry } from 'vs/platform/registry/common/platform';
 import { ICommandService } from 'vs/platform/commands/common/commands';
@@ -15,7 +15,7 @@ import { Part } from 'vs/workbench/browser/part';
 import { IStatusbarRegistry, Extensions, IStatusbarItem } from 'vs/workbench/browser/parts/statusbar/statusbar';
 import { IInstantiationService, ServiceIdentifier } from 'vs/platform/instantiation/common/instantiation';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
-import { StatusbarAlignment, IStatusbarService, IStatusbarEntry } from 'vs/platform/statusbar/common/statusbar';
+import { StatusbarAlignment, IStatusbarService, IStatusbarEntry, IStatusbarEntryAccessor } from 'vs/platform/statusbar/common/statusbar';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { Action } from 'vs/base/common/actions';
 import { IThemeService, registerThemingParticipant, ITheme, ICssStyleCollector, ThemeColor } from 'vs/platform/theme/common/themeService';
@@ -24,7 +24,7 @@ import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/
 import { contrastBorder } from 'vs/platform/theme/common/colorRegistry';
 import { isThemeColor } from 'vs/editor/common/editorCommon';
 import { Color } from 'vs/base/common/color';
-import { addClass, EventHelper, createStyleSheet, addDisposableListener } from 'vs/base/browser/dom';
+import { addClass, EventHelper, createStyleSheet, addDisposableListener, toggleClass } from 'vs/base/browser/dom';
 import { INotificationService } from 'vs/platform/notification/common/notification';
 import { IStorageService } from 'vs/platform/storage/common/storage';
 import { Parts, IWorkbenchLayoutService } from 'vs/workbench/services/layout/browser/layoutService';
@@ -67,7 +67,7 @@ export class StatusbarPart extends Part implements IStatusbarService {
 		this._register(this.contextService.onDidChangeWorkbenchState(() => this.updateStyles()));
 	}
 
-	addEntry(entry: IStatusbarEntry, alignment: StatusbarAlignment, priority: number = 0): IDisposable {
+	addEntry(entry: IStatusbarEntry, alignment: StatusbarAlignment, priority: number = 0): IStatusbarEntryAccessor {
 
 		// As long as we have not been created into a container yet, record all entries
 		// that are pending so that they can get created at a later point
@@ -75,16 +75,21 @@ export class StatusbarPart extends Part implements IStatusbarService {
 			const pendingEntry = { entry, alignment, priority, disposable: Disposable.None };
 			this.pendingEntries.push(pendingEntry);
 
-			return toDisposable(() => {
-				this.pendingEntries = this.pendingEntries.filter(e => e !== pendingEntry);
-				pendingEntry.disposable.dispose();
-			});
+			return {
+				update: properties => {
+					pendingEntry.entry = properties;
+				},
+				dispose: () => {
+					this.pendingEntries = this.pendingEntries.filter(e => e !== pendingEntry);
+					pendingEntry.disposable.dispose();
+				}
+			};
 		}
 
 		// Render entry in status bar
 		const el = this.doCreateStatusItem(alignment, priority, entry.showBeak ? 'has-beak' : undefined);
-		const item = this.instantiationService.createInstance(StatusBarEntryItem, entry);
-		const toDispose = item.render(el);
+		const item = this.instantiationService.createInstance(StatusBarEntryItem);
+		item.update(entry);
 
 		// Insert according to priority
 		const container = this.element;
@@ -106,13 +111,16 @@ export class StatusbarPart extends Part implements IStatusbarService {
 			container.appendChild(el);
 		}
 
-		return toDisposable(() => {
-			el.remove();
-
-			if (toDispose) {
-				toDispose.dispose();
+		return {
+			update: properties => {
+				toggleClass(el, 'has-beak', entry.showBeak);
+				item.update(properties);
+			},
+			dispose: () => {
+				el.remove();
+				dispose(item);
 			}
-		});
+		};
 	}
 
 	private getEntries(alignment: StatusbarAlignment): HTMLElement[] {
@@ -264,10 +272,11 @@ export class StatusbarPart extends Part implements IStatusbarService {
 }
 
 let manageExtensionAction: ManageExtensionAction;
-class StatusBarEntryItem implements IStatusbarItem {
+class StatusBarEntryItem extends Disposable implements IStatusbarItem {
+	private label: OcticonLabel;
+	private entry: IStatusbarEntry;
 
 	constructor(
-		private entry: IStatusbarEntry,
 		@ICommandService private readonly commandService: ICommandService,
 		@IInstantiationService private readonly instantiationService: IInstantiationService,
 		@INotificationService private readonly notificationService: INotificationService,
@@ -276,15 +285,20 @@ class StatusBarEntryItem implements IStatusbarItem {
 		@IEditorService private readonly editorService: IEditorService,
 		@IThemeService private readonly themeService: IThemeService
 	) {
-		this.entry = entry;
+		super();
 
 		if (!manageExtensionAction) {
 			manageExtensionAction = this.instantiationService.createInstance(ManageExtensionAction);
 		}
 	}
 
+	update(entry: IStatusbarEntry): void {
+		this.entry = entry;
+
+		this.render(window.document.body);
+	}
+
 	render(el: HTMLElement): IDisposable {
-		let toDispose: IDisposable[] = [];
 		addClass(el, 'statusbar-entry');
 
 		// Text Container
@@ -292,13 +306,14 @@ class StatusBarEntryItem implements IStatusbarItem {
 		if (this.entry.command) {
 			textContainer = document.createElement('a');
 
-			toDispose.push(addDisposableListener(textContainer, 'click', () => this.executeCommand(this.entry.command!, this.entry.arguments)));
+			this._register(addDisposableListener(textContainer, 'click', () => this.executeCommand(this.entry.command!, this.entry.arguments)));
 		} else {
 			textContainer = document.createElement('span');
 		}
 
 		// Label
-		new OcticonLabel(textContainer).text = this.entry.text;
+		this.label = new OcticonLabel(textContainer);
+		this.label.text = this.entry.text;
 
 		// Tooltip
 		if (this.entry.tooltip) {
@@ -306,17 +321,17 @@ class StatusBarEntryItem implements IStatusbarItem {
 		}
 
 		// Color (only applies to text container)
-		toDispose.push(this.applyColor(textContainer, this.entry.color));
+		this._register(this.applyColor(textContainer, this.entry.color));
 
 		// Background Color (applies to parent element to fully fill container)
 		if (this.entry.backgroundColor) {
-			toDispose.push(this.applyColor(el, this.entry.backgroundColor, true));
+			this._register(this.applyColor(el, this.entry.backgroundColor, true));
 			addClass(el, 'has-background-color');
 		}
 
 		// Context Menu
 		if (this.entry.extensionId) {
-			toDispose.push(addDisposableListener(textContainer, 'contextmenu', e => {
+			this._register(addDisposableListener(textContainer, 'contextmenu', e => {
 				EventHelper.stop(e, true);
 
 				this.contextMenuService.showContextMenu({
@@ -329,7 +344,7 @@ class StatusBarEntryItem implements IStatusbarItem {
 
 		el.appendChild(textContainer);
 
-		return toDisposable(() => toDispose = dispose(toDispose));
+		return this;
 	}
 
 	private applyColor(container: HTMLElement, color: string | ThemeColor | undefined, isBackground?: boolean): IDisposable {
