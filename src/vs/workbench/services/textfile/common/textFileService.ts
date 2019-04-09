@@ -15,7 +15,7 @@ import { IResult, ITextFileOperationResult, ITextFileService, IRawTextContent, I
 import { ConfirmResult, IRevertOptions } from 'vs/workbench/common/editor';
 import { ILifecycleService, ShutdownReason, LifecyclePhase } from 'vs/platform/lifecycle/common/lifecycle';
 import { IWorkspaceContextService, WorkbenchState } from 'vs/platform/workspace/common/workspace';
-import { IFileService, IResolveContentOptions, IFilesConfiguration, FileOperationError, FileOperationResult, AutoSaveConfiguration, HotExitConfiguration } from 'vs/platform/files/common/files';
+import { IFileService, IResolveContentOptions, IFilesConfiguration, FileOperationError, FileOperationResult, AutoSaveConfiguration, HotExitConfiguration, ITextSnapshot, IUpdateContentOptions, IFileStatWithMetadata } from 'vs/platform/files/common/files';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { Disposable } from 'vs/base/common/lifecycle';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
@@ -105,7 +105,7 @@ export class TextFileService extends Disposable implements ITextFileService {
 		return this._models;
 	}
 
-	resolveTextContent(resource: URI, options?: IResolveContentOptions): Promise<IRawTextContent> {
+	resolve(resource: URI, options?: IResolveContentOptions): Promise<IRawTextContent> {
 		return this.fileService.resolveStreamContent(resource, options).then(streamContent => {
 			return createTextBufferFactoryFromStream(streamContent.value).then(res => {
 				return {
@@ -736,7 +736,7 @@ export class TextFileService extends Disposable implements ITextFileService {
 
 				// create target model adhoc if file does not exist yet
 				if (!targetExists) {
-					return this.fileService.updateContent(target, '');
+					return this.update(target, '');
 				}
 
 				return Promise.resolve(undefined);
@@ -858,21 +858,25 @@ export class TextFileService extends Disposable implements ITextFileService {
 		})).then(r => ({ results: mapResourceToResult.values() }));
 	}
 
-	create(resource: URI, contents?: string, options?: { overwrite?: boolean }): Promise<void> {
+	create(resource: URI, contents?: string, options?: { overwrite?: boolean }): Promise<IFileStatWithMetadata> {
 		const existingModel = this.models.get(resource);
 
-		return this.fileService.createFile(resource, contents, options).then(() => {
+		return this.fileService.createFile(resource, contents, options).then(stat => {
 
 			// If we had an existing model for the given resource, load
 			// it again to make sure it is up to date with the contents
 			// we just wrote into the underlying resource by calling
 			// revert()
 			if (existingModel && !existingModel.isDisposed()) {
-				return existingModel.revert();
+				return existingModel.revert().then(() => stat);
 			}
 
-			return undefined;
+			return stat;
 		});
+	}
+
+	update(resource: URI, value: string | ITextSnapshot, options?: IUpdateContentOptions): Promise<IFileStatWithMetadata> {
+		return this.fileService.updateContent(resource, value, options);
 	}
 
 	delete(resource: URI, options?: { useTrash?: boolean, recursive?: boolean }): Promise<void> {

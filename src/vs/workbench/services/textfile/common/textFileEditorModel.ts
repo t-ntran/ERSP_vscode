@@ -306,7 +306,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 
 		// Resolve Content
 		return this.textFileService
-			.resolveTextContent(this.resource, { acceptTextOnly: !allowBinary, etag, encoding: this.preferredEncoding })
+			.resolve(this.resource, { acceptTextOnly: !allowBinary, etag, encoding: this.preferredEncoding })
 			.then(content => {
 
 				// Clear orphaned state when loading was successful
@@ -705,7 +705,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 			if (!snapshot) {
 				throw new Error('Invalid snapshot');
 			}
-			return this.saveSequentializer.setPending(newVersionId, this.fileService.updateContent(this.lastResolvedDiskStat.resource, snapshot, {
+			return this.saveSequentializer.setPending(newVersionId, this.textFileService.update(this.lastResolvedDiskStat.resource, snapshot, {
 				overwriteReadonly: options.overwriteReadonly,
 				overwriteEncoding: options.overwriteEncoding,
 				mtime: this.lastResolvedDiskStat.mtime,
@@ -845,7 +845,7 @@ export class TextFileEditorModel extends BaseTextEditorModel implements ITextFil
 		if (!snapshot) {
 			throw new Error('invalid snapshot');
 		}
-		return this.saveSequentializer.setPending(versionId, this.fileService.updateContent(this.lastResolvedDiskStat.resource, snapshot, {
+		return this.saveSequentializer.setPending(versionId, this.textFileService.update(this.lastResolvedDiskStat.resource, snapshot, {
 			mtime: this.lastResolvedDiskStat.mtime,
 			encoding: this.getEncoding(),
 			etag: this.lastResolvedDiskStat.etag

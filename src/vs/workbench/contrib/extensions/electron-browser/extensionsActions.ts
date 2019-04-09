@@ -60,6 +60,7 @@ import { REMOTE_HOST_SCHEME } from 'vs/platform/remote/common/remoteHosts';
 import { isUIExtension } from 'vs/workbench/services/extensions/node/extensionsUtil';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
 import { isEqual } from 'vs/base/common/resources';
+import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 
 function toExtensionDescription(local: ILocalExtension): IExtensionDescription {
 	return {
@@ -1940,6 +1941,7 @@ export abstract class AbstractConfigureRecommendedExtensionsAction extends Actio
 		label: string,
 		@IWorkspaceContextService protected contextService: IWorkspaceContextService,
 		@IFileService private readonly fileService: IFileService,
+		@ITextFileService private readonly textFileService: ITextFileService,
 		@IEditorService protected editorService: IEditorService,
 		@IJSONEditingService private readonly jsonEditingService: IJSONEditingService,
 		@ITextModelService private readonly textModelResolverService: ITextModelService
@@ -2088,7 +2090,7 @@ export abstract class AbstractConfigureRecommendedExtensionsAction extends Actio
 		return Promise.resolve(this.fileService.resolveContent(extensionsFileResource)).then(content => {
 			return { created: false, extensionsFileResource, content: content.value };
 		}, err => {
-			return this.fileService.updateContent(extensionsFileResource, ExtensionsConfigurationInitialContent).then(() => {
+			return this.textFileService.update(extensionsFileResource, ExtensionsConfigurationInitialContent).then(() => {
 				return { created: true, extensionsFileResource, content: ExtensionsConfigurationInitialContent };
 			});
 		});
@@ -2106,12 +2108,13 @@ export class ConfigureWorkspaceRecommendedExtensionsAction extends AbstractConfi
 		id: string,
 		label: string,
 		@IFileService fileService: IFileService,
+		@ITextFileService textFileService: ITextFileService,
 		@IWorkspaceContextService contextService: IWorkspaceContextService,
 		@IEditorService editorService: IEditorService,
 		@IJSONEditingService jsonEditingService: IJSONEditingService,
 		@ITextModelService textModelResolverService: ITextModelService
 	) {
-		super(id, label, contextService, fileService, editorService, jsonEditingService, textModelResolverService);
+		super(id, label, contextService, fileService, textFileService, editorService, jsonEditingService, textModelResolverService);
 		this.contextService.onDidChangeWorkbenchState(() => this.update(), this, this.disposables);
 		this.update();
 	}
@@ -2147,13 +2150,14 @@ export class ConfigureWorkspaceFolderRecommendedExtensionsAction extends Abstrac
 		id: string,
 		label: string,
 		@IFileService fileService: IFileService,
+		@ITextFileService textFileService: ITextFileService,
 		@IWorkspaceContextService contextService: IWorkspaceContextService,
 		@IEditorService editorService: IEditorService,
 		@IJSONEditingService jsonEditingService: IJSONEditingService,
 		@ITextModelService textModelResolverService: ITextModelService,
 		@ICommandService private readonly commandService: ICommandService
 	) {
-		super(id, label, contextService, fileService, editorService, jsonEditingService, textModelResolverService);
+		super(id, label, contextService, fileService, textFileService, editorService, jsonEditingService, textModelResolverService);
 		this.contextService.onDidChangeWorkspaceFolders(() => this.update(), this, this.disposables);
 		this.update();
 	}
@@ -2192,6 +2196,7 @@ export class AddToWorkspaceFolderRecommendationsAction extends AbstractConfigure
 		id: string,
 		label: string,
 		@IFileService fileService: IFileService,
+		@ITextFileService textFileService: ITextFileService,
 		@IWorkspaceContextService contextService: IWorkspaceContextService,
 		@IEditorService editorService: IEditorService,
 		@IJSONEditingService jsonEditingService: IJSONEditingService,
@@ -2199,7 +2204,7 @@ export class AddToWorkspaceFolderRecommendationsAction extends AbstractConfigure
 		@ICommandService private readonly commandService: ICommandService,
 		@INotificationService private readonly notificationService: INotificationService
 	) {
-		super(id, label, contextService, fileService, editorService, jsonEditingService, textModelResolverService);
+		super(id, label, contextService, fileService, textFileService, editorService, jsonEditingService, textModelResolverService);
 	}
 
 	run(shouldRecommend: boolean): Promise<void> {
@@ -2275,13 +2280,14 @@ export class AddToWorkspaceRecommendationsAction extends AbstractConfigureRecomm
 		id: string,
 		label: string,
 		@IFileService fileService: IFileService,
+		@ITextFileService textFileService: ITextFileService,
 		@IWorkspaceContextService contextService: IWorkspaceContextService,
 		@IEditorService editorService: IEditorService,
 		@IJSONEditingService jsonEditingService: IJSONEditingService,
 		@ITextModelService textModelResolverService: ITextModelService,
 		@INotificationService private readonly notificationService: INotificationService
 	) {
-		super(id, label, contextService, fileService, editorService, jsonEditingService, textModelResolverService);
+		super(id, label, contextService, fileService, textFileService, editorService, jsonEditingService, textModelResolverService);
 	}
 
 	run(shouldRecommend: boolean): Promise<void> {
