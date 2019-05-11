@@ -820,14 +820,20 @@ class RTVDisplayBox {
 		// Generate markdown table of all envs
 		let header_line_1 = "|";
 		let header_line_2 = "|";
+		let header:string[] = [];
 		keys_set.forEach((v:string) => {
 			header_line_1 = header_line_1 + v + "|";
 			header_line_2 = header_line_2 + "---|";
+			header.push(v);
 		});
 
 		let mkdn = header_line_1 + "\n" + header_line_2 + "\n";
+
+		//Stores the rows of the table
+		let rows: string [][] = [];
 		for (let i = 0; i < envs.length; i++) {
 			let env = envs[i];
+			let row:string [] = [];
 			mkdn = mkdn + "|";
 			keys_set.forEach((v:string) => {
 				if (i === 0) {
@@ -837,17 +843,46 @@ class RTVDisplayBox {
 				} else {
 					var v_str = env[v];
 				}
+				row.push(v_str);
 				mkdn = mkdn + v_str + "|";
 			});
+			rows.push(row);
 			mkdn = mkdn + "\n";
 		};
 
 		// Update html content
 		this._box.textContent = "";
 		const renderer = new MarkdownRenderer(this._editor, this._modeService, this._openerService);
-		const renderedContents = renderer.render(new MarkdownString(mkdn));
-		this._box.appendChild(renderedContents.element);
 
+		//Creates the HTML Table and populates it
+		let table = document.createElement('table');
+
+		table.createTHead();
+		if(table.tHead){
+			let headerRow = table.tHead.insertRow(-1);
+			header.forEach((h: string)=>{
+				let newHeaderCell = headerRow.insertCell(-1);
+				let renderedText = renderer.render(new MarkdownString("```python\n"+h+"```"));
+				newHeaderCell.align = 'center';
+				newHeaderCell.appendChild(renderedText.element);
+			});
+		}
+
+		rows.forEach((row:string[]) =>{
+		let newRow = table.insertRow(-1);
+		row.forEach((item: string)=>{
+			let newCell = newRow.insertCell(-1);
+			let renderedText = renderer.render(new MarkdownString("```python\n"+item+"```"));
+				if(item === "&darr;"){
+					renderedText = renderer.render(new MarkdownString(item));
+				}
+				newCell.align = 'center';
+				newCell.appendChild(renderedText.element);
+			});
+		});
+
+
+		this._box.appendChild(table);
 	}
 
 	public getHeight() {
