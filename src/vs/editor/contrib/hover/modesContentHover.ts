@@ -638,6 +638,7 @@ import { ICursorPositionChangedEvent } from 'vs/editor/common/controller/cursorE
 import { IModelContentChangedEvent } from 'vs/editor/common/model/textModelEvents';
 import { IScrollEvent } from 'vs/editor/common/editorCommon';
 import { EditorLayoutInfo } from 'vs/editor/common/config/editorOptions';
+import * as strings from 'vs/base/common/strings';
 
 // setInterval(() => {
 // 	let editor_div = document.getElementsByClassName("monaco-editor")[0];
@@ -966,6 +967,7 @@ class RTVCoordinator {
 	public rws: { [k:string]: string; } = {};
 	private _boxes: RTVDisplayBox[] = [];
 	private _maxPixelCol = 0;
+	private _prevModel: string[] = [];
 
 	constructor(
 		private readonly _editor: ICodeEditor,
@@ -989,6 +991,7 @@ class RTVCoordinator {
 		// this._boxes[10].hiddenByUser = false;
 		// this._boxes[5].hiddenByUser = false;
 		this.updateMaxPixelCol();
+		this.updatePrevModel();
 	}
 
 	get maxPixelCol() {
@@ -1017,8 +1020,6 @@ class RTVCoordinator {
 				max = pixelPos.left;
 			}
 		}
-		console.log("Old: " + this._maxPixelCol.toString());
-		console.log("New: " + max.toString());
 		this._maxPixelCol = max;
 	}
 
@@ -1035,6 +1036,9 @@ class RTVCoordinator {
 	private addBoxes() {
 		let lineCount = this.getLineCount();
 		if (lineCount > this._boxes.length) {
+			// This should not happen, given our understanding of how changes are reported to us from VSCode.
+			// BUT: just to be safe, we have this here to make sure we're not missing something.
+			console.log("Warning: actually had to add boxes");
 			for (let j = this._boxes.length; j < lineCount; j++) {
 				this._boxes[j] = new RTVDisplayBox(this, this._editor, this._modeService, this._openerService, j+1);
 			}
@@ -1062,7 +1066,10 @@ class RTVCoordinator {
 
 	private updateContentAndLayout() {
 		this.updateContent();
-		this.updateLayout();
+		// The following seems odd, but it's really a thing in browsers.
+		// We need to let layout threads catch up after we updated content to
+		// get the correct sizes for boxes.
+		setTimeout(() => { this.updateLayout(); }, 0);
 	}
 
 	private updateContent() {
@@ -1156,6 +1163,21 @@ class RTVCoordinator {
 
 	}
 
+	private updatePrevModel() {
+		let model = this._editor.getModel();
+		if (model !== null) {
+			this._prevModel = model.getLinesContent().map((x) => x);
+		}
+	}
+
+	public getLineLastNonWhitespaceColumn(lineNumber: number): number {
+		const result = strings.lastNonWhitespaceIndex(this._prevModel[lineNumber-1]);
+		if (result === -1) {
+			return 0;
+		}
+		return result + 2;
+	}
+
 	private updateHiddenFlags(e: IModelContentChangedEvent) {
 		let orig = this._boxes.map((x) => x);
 		let changes = e.changes.sort((a,b) => Range.compareRangesUsingStarts(a.range,b.range));
@@ -1165,21 +1187,21 @@ class RTVCoordinator {
 		let i = 0;
 		while (i < this.getLineCount()) {
 			if (changeIdx >= changes.length) {
-				//this._boxes[i++].hiddenByUser = orig[origIdx++];
 				this._boxes[i++] = orig[origIdx++];
 				this._boxes[i-1].lineNumber = i;
 			} else {
 				let line = i + 1;
 				let change = changes[changeIdx];
-				if (change.range.startLineNumber !== line) {
-					// this._boxes[i++].hiddenByUser = orig[origIdx++];
-					this._boxes[i++] = orig[origIdx++];
-					this._boxes[i-1].lineNumber = i;
-				} else {
+				let numAddedLines = change.text.split("\n").length-1;
+				let changeStartLine = change.range.startLineNumber;
+				let changeEndLine = change.range.endLineNumber;
+				let numRemovedLines = changeEndLine - changeStartLine;
+				let deltaNumLines = numAddedLines - numRemovedLines;
+				let changeStartCol = change.range.startColumn;
+				if ((deltaNumLines <= 0 && changeStartLine === line) ||
+					(deltaNumLines > 0 && ((changeStartLine === line && changeStartCol < this.getLineLastNonWhitespaceColumn(line)) ||
+						 				   (changeStartLine === line-1 && changeStartCol >= this.getLineLastNonWhitespaceColumn(line-1))))) {
 					changeIdx++;
-					let numAddedLines = change.text.split("\n").length-1;
-					let numRemovedLines = change.range.endLineNumber - change.range.startLineNumber;
-					let deltaNumLines = numAddedLines - numRemovedLines;
 					if (deltaNumLines === 0) {
 						// nothing to do
 					} else if (deltaNumLines > 0) {
@@ -1187,7 +1209,6 @@ class RTVCoordinator {
 							let new_box = new RTVDisplayBox(this, this._editor, this._modeService, this._openerService, i+1);
 							new_box.hiddenByUser = orig[origIdx].hiddenByUser;
 							this._boxes[i++] = new_box;
-							// this._boxes[i++].hiddenByUser = orig[origIdx];
 						}
 					} else {
 						for (let j = origIdx; j < origIdx + (-deltaNumLines); j++) {
@@ -1197,9 +1218,14 @@ class RTVCoordinator {
 						origIdx = origIdx + (-deltaNumLines);
 					}
 				}
+				else {
+					this._boxes[i++] = orig[origIdx++];
+					this._boxes[i-1].lineNumber = i;
+				}
 			}
 
 		}
+		this.updatePrevModel();
 	}
 
 	private onChangeModelContent(e: IModelContentChangedEvent) {
