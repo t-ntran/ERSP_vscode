@@ -43,8 +43,6 @@ import { IModeService } from 'vs/editor/common/services/modeService';
 import { withNullAsUndefined } from 'vs/base/common/types';
 import { IIdentifiedSingleEditOperation } from 'vs/editor/common/model';
 
-let global_coordinator: RTVCoordinator | undefined;
-
 const $ = dom.$;
 
 class ColorHover {
@@ -219,7 +217,7 @@ export class ModesContentHoverWidget extends ContentHoverWidget {
 	) {
 		super(ModesContentHoverWidget.ID, editor);
 
-		global_coordinator = new RTVCoordinator(editor, _modeService, _openerService);
+		new RTVCoordinator(editor, _modeService, _openerService);
 
 		this._messages = [];
 		this._lastRange = null;
@@ -683,16 +681,17 @@ import * as strings from 'vs/base/common/strings';
 // 	}
 // },20);
 
-class Line {
+class RTVLine {
 	private _div: HTMLDivElement;
 	constructor(
+		editor: ICodeEditor,
 		x1: number,
 		y1: number,
 		x2: number,
 		y2: number
 	) {
-		let editor_div = document.getElementsByClassName("monaco-editor")[0];
-		if (editor_div === undefined) {
+		let editor_div = editor.getDomNode();
+		if (editor_div === null) {
 			throw new Error('Cannot find Monaco Editor');
 		}
 
@@ -742,7 +741,7 @@ class Line {
 
 class RTVDisplayBox {
 	private _box: HTMLDivElement;
-	private _line: Line;
+	private _line: RTVLine;
 	private _zoom: number = 1;
 	private _opacity: number = 1;
 	private _hiddenByUser: boolean = false;
@@ -755,7 +754,6 @@ class RTVDisplayBox {
 		private _lineNumber: number
 	) {
 		let editor_div = this._editor.getDomNode();
-		//let editor_div = document.getElementsByClassName("monaco-editor")[0];
 		if (editor_div === null) {
 			throw new Error('Cannot find Monaco Editor');
 		}
@@ -769,14 +767,12 @@ class RTVDisplayBox {
 		this._box.style.transitionDuration = "0.3s";
 		this._box.style.transitionDelay = "0s";
 		this._box.style.transitionTimingFunction = "ease-in";
-		//box.style.transform = "scale(2.5)";
-		//box.style.zoom = "1";
 		this._box.className = "monaco-editor-hover";
 		this._box.onclick = (e) => {
 			this.onClick(e);
 		};
 		editor_div.appendChild(this._box);
-		this._line = new Line(0,0,0,0);
+		this._line = new RTVLine(this._editor, 0, 0, 0, 0);
 		this.hide();
 	}
 
@@ -939,25 +935,29 @@ class RTVDisplayBox {
 		});
 
 		//this._box.style.borderColor = 'rgb(200, 200, 200)';
-		if(this._coordinator._outOfDate !== 0) {
-			this.createOutOfDate();
-
-		}
 		this._box.appendChild(table);
 
-	}
-
-	private createOutOfDate(){
+		// Add green/red dot to show out of date status
 		let stopElement = document.createElement('div');
-		stopElement.style.width = '8px';
-		stopElement.style.height = '8px';
+		stopElement.style.width = '5px';
+		stopElement.style.height = '5px';
 		stopElement.style.position = 'absolute';
 		stopElement.style.top = '5px';
 		stopElement.style.left = '3px';
-		stopElement.style.backgroundColor = 'red';
 		stopElement.style.borderRadius = '50%';
+		let x = this._coordinator._changedLinesWhenOutOfDate;
+		if (x === null) {
+			stopElement.style.backgroundColor = 'green';
+		} else {
+			let green = 165 - (x.size-1) * 35;
+			if (green < 0) {
+				green = 0;
+			}
+			stopElement.style.backgroundColor = 'rgb(255,' + green.toString() + ',0)';
+		}
 
 		this._box.appendChild(stopElement);
+
 	}
 
 	public getHeight() {
@@ -982,7 +982,6 @@ class RTVDisplayBox {
 
 		// update the line
 		let midPointTop = (pixelPosAtLine.top + pixelPosAtNextLine.top)/2;
-		this._line.setOpacity(this._opacity);
 		this._line.move(this._coordinator.maxPixelCol+30, midPointTop, left, top);
 
 	}
@@ -997,6 +996,7 @@ class RTVDisplayBox {
 			if (distAbs !== 0) {
 				this._opacity = 1/distAbs;
 			}
+			this._line.setOpacity(this._opacity);
 		}
 	}
 
@@ -1029,6 +1029,7 @@ class RTVCoordinator {
 	private _prevModel: string[] = [];
 	private _visMode: VisibilityMode = VisibilityMode.AllBoxes;
 	public _outOfDate: number = 0;
+	public _changedLinesWhenOutOfDate: Set<number> | null = new Set();
 	private _outOfDateTimerId: NodeJS.Timer | null = null;
 
 	constructor(
@@ -1036,10 +1037,6 @@ class RTVCoordinator {
 		private readonly _modeService: IModeService,
 		private readonly _openerService: IOpenerService | null
 	) {
-		// let editor_div = document.getElementsByClassName("monaco-editor")[0];
-		// if (editor_div === undefined) {
-		// 	throw new Error('Cannot find Monaco Editor');
-		// }
 		this._editor.onDidChangeCursorPosition((e) => { this.onChangeCursorPosition(e); });
 		this._editor.onDidScrollChange((e) => { this.onScrollChange(e); });
 		this._editor.onDidLayoutChange((e) => { this.onLayoutChange(e); });
@@ -1093,6 +1090,22 @@ class RTVCoordinator {
 		this._maxPixelCol = max;
 	}
 
+	private updateLinesWhenOutOfDate(e: IModelContentChangedEvent, exitCode: number | null) {
+		if (exitCode === 0) {
+			this._changedLinesWhenOutOfDate = null;
+		} else {
+			if (this._changedLinesWhenOutOfDate === null) {
+				this._changedLinesWhenOutOfDate = new Set();
+			}
+			let s = this._changedLinesWhenOutOfDate;
+			e.changes.forEach((change) => {
+				for (let i = change.range.startLineNumber; i <= change.range.endLineNumber; i++){
+					s.add(i);
+				}
+			});
+		}
+	}
+
 	private getBox(lineNumber:number) {
 		let i = lineNumber - 1;
 		if (i >= this._boxes.length) {
@@ -1103,7 +1116,7 @@ class RTVCoordinator {
 		return this._boxes[i];
 	}
 
-	private addBoxes() {
+	private padBoxArray() {
 		let lineCount = this.getLineCount();
 		if (lineCount > this._boxes.length) {
 			// This should not happen, given our understanding of how changes are reported to us from VSCode.
@@ -1143,14 +1156,14 @@ class RTVCoordinator {
 	}
 
 	private updateContent() {
-		this.addBoxes();
+		this.padBoxArray();
 		this._boxes.forEach((b) => {
 			b.updateContent();
 		});
 	}
 
 	private updateLayout() {
-		this.addBoxes();
+		this.padBoxArray();
 		// this._boxes.forEach((b) => {
 		// 	b.updateZoomAndOpacity();
 		// });
@@ -1248,7 +1261,7 @@ class RTVCoordinator {
 		return result + 2;
 	}
 
-	private updateHiddenFlags(e: IModelContentChangedEvent) {
+	private addRemoveBoxes(e: IModelContentChangedEvent) {
 		let orig = this._boxes.map((x) => x);
 		let changes = e.changes.sort((a,b) => Range.compareRangesUsingStarts(a.range,b.range));
 		console.log(changes);
@@ -1310,8 +1323,8 @@ class RTVCoordinator {
 		}
 		console.log("onChangeModelContent");
 		//console.log(e);
-		this.addBoxes();
-		this.updateHiddenFlags(e);
+		this.padBoxArray();
+		this.addRemoveBoxes(e);
 		this.updateMaxPixelCol();
 		let code_fname = os.tmpdir() + path.sep + "tmp.py";
 		let model = this._editor.getModel();
@@ -1328,14 +1341,15 @@ class RTVCoordinator {
 		c.stderr.on("data", (data) => {
 			//console.log(data.toString())
 		});
-		c.on('exit', (exit_code,signal_code) => {
-			console.log("Exit code from run.py: " + exit_code);
-			if (exit_code === 0) {
-				if (this._outOfDateTimerId !== null) {
-					clearInterval(this._outOfDateTimerId);
-					this._outOfDateTimerId = null;
-					this._outOfDate = 0;
-				}
+		c.on('exit', (exitCode, signalCode) => {
+			console.log("Exit code from run.py: " + exitCode);
+			this.updateLinesWhenOutOfDate(e, exitCode);
+			if (exitCode === 0) {
+				this._outOfDate = 0;
+				// if (this._outOfDateTimerId !== null) {
+				// 	clearInterval(this._outOfDateTimerId);
+				// 	this._outOfDateTimerId = null;
+				// }
 				this.updateData(fs.readFileSync(code_fname + ".out").toString());
 				this.updateContentAndLayout();
 				//console.log(envs);
@@ -1343,9 +1357,9 @@ class RTVCoordinator {
 			else if (this._outOfDateTimerId === null) {
 				this._outOfDate++;
 				this.updateContentAndLayout();
-				this._outOfDateTimerId = setInterval(() => {
-					this.onOutOfDate();
-				}, 300);
+				// this._outOfDateTimerId = setInterval(() => {
+				// 	this.onOutOfDate();
+				// }, 300);
 			}
 		});
 
