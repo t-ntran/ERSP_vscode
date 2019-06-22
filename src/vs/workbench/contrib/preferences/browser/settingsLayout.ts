@@ -187,6 +187,10 @@ export const tocData: ITOCEntry = {
 					settings: ['telemetry.*']
 				}
 			]
+		} , {
+			id: "rtv",
+			label: localize("runtimeValues", "Runtime Values"),
+			settings: ["rtv.*"]
 		}
 	]
 };
