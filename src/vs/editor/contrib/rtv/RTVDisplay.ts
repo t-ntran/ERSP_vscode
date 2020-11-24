@@ -38,8 +38,8 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 import {
 	badgeBackground,
 	editorWidgetBackground,
-	inputBackground,
 	inputBorder,
+	inputBackground,
 	inputForeground,
 	widgetShadow
 } from 'vs/platform/theme/common/colorRegistry';
@@ -1702,7 +1702,7 @@ export class RTVController implements IRTVController {
 	private _config: ConfigurationServiceCache;
 	private _makeNewBoxesVisible: boolean = true;
 	private _loopFocusController: LoopFocusController | null = null;
-	private _errorDecorationID: string | null = null;
+	private _errorDecorationID: string[] = [];
 	private _visibilityPolicy: VisibilityPolicy = visibilityAll;
 	private _peekCounter: number = 0;
 	private _peekTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2538,14 +2538,14 @@ export class RTVController implements IRTVController {
 		});
 	}
 
-	private showErrorWithDelay(returnCode: number, errorMsg: string) {
+	public showErrorWithDelay(returnCode: number, errorMsg: string) {
 		this._showErrorDelay.run(1500, () => {
 			this.clearError();
 			this.showError(errorMsg);
 		});
 	}
 
-	private showError(errorMsg: string) {
+	public showError(errorMsg: string) {
 		// There are two kinds of errors:
 		//
 		// I. Runtime errors, which end like this:
@@ -2586,8 +2586,12 @@ export class RTVController implements IRTVController {
 			// found a line number here, so this is a runtime error)
 			// match[0] is entire 'line N' match, match[1] is just the number N
 			lineNumber = +match[1];
-			colStart = this.firstNonWhitespaceCol(lineNumber);
-			colEnd = this.lastNonWhitespaceCol(lineNumber);
+
+			// Check that it's a valid linenumber for this file
+			if (lineNumber > 0 && lineNumber <= this.getModelForce().getLineCount()) {
+				colStart = this.firstNonWhitespaceCol(lineNumber);
+				colEnd = this.lastNonWhitespaceCol(lineNumber);
+			}
 		} else {
 			// No line number here so this is a syntax error, so we in fact
 			// didn't get the error line number, we got the line with the caret
@@ -2632,14 +2636,15 @@ export class RTVController implements IRTVController {
 		}
 		let range = new Range(lineNumber, colStart, lineNumber, colEnd);
 		let options = { className: 'squiggly-error', hoverMessage: new MarkdownString(description) };
-		this._errorDecorationID = this.addDecoration(range, options);
+
+		this.clearError();
+		this._errorDecorationID.push(this.addDecoration(range, options));
 	}
 
-	private clearError() {
+	public clearError() {
 		this._showErrorDelay.cancel();
-		if (this._errorDecorationID !== null) {
-			this.removeDecoration(this._errorDecorationID);
-			this._errorDecorationID = null;
+		while (this._errorDecorationID.length > 0) {
+			this.removeDecoration(this._errorDecorationID.pop()!);
 		}
 	}
 

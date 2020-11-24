@@ -4,7 +4,7 @@ import { ICodeEditor, IEditorMouseEvent } from 'vs/editor/browser/editorBrowser'
 import { DelayedRunAtMostOne } from 'vs/editor/contrib/rtv/RTVDisplay';
 import { ITextModel } from 'vs/editor/common/model';
 import { Process, IRTVLogger } from 'vs/editor/contrib/rtv/RTVInterfaces';
-
+import { RTVController } from 'vs/editor/contrib/rtv/RTVDisplay';
 import * as utils from 'vs/editor/contrib/rtv/RTVUtils';
 
 class RTVImgDisplayBox {
@@ -36,6 +36,7 @@ class RTVImgDisplayBox {
 class RTVImgController implements IEditorContribution {
 
 	public static readonly ID = 'editor.contrib.rtvImgDisplay';
+	private _rtvDisplay: RTVController;
 	private _displayImg: DelayedRunAtMostOne = new DelayedRunAtMostOne();
 	private _pythonProcess?: Process = undefined;
 	private _imgDisplayBox: RTVImgDisplayBox | undefined;
@@ -46,6 +47,7 @@ class RTVImgController implements IEditorContribution {
 	) {
 		this._editor.onMouseMove(e => this.onMouseMove(e));
 		this.logger = utils.getLogger(_editor);
+		this._rtvDisplay = _editor.getContribution<RTVController>(RTVController.ID);
 	}
 
 	private onMouseMove(e: IEditorMouseEvent): void {
@@ -95,6 +97,10 @@ class RTVImgController implements IEditorContribution {
 			let c = utils.runImgSummary(program, lineNumber, varname);
 			this._pythonProcess = c;
 
+			let errorMsg: string = '';
+			c.onStderr((msg) => {
+				errorMsg += msg;
+			});
 
 			c.onExit((exitCode, result) => {
 				this.logger.imgSummaryEnd(result);
@@ -106,9 +112,12 @@ class RTVImgController implements IEditorContribution {
 						if (this._imgDisplayBox) {
 							this._imgDisplayBox.destroy();
 						}
+						this._rtvDisplay.clearError();
 						this._imgDisplayBox = new RTVImgDisplayBox(this._editor, result,  top, left);
 					}
 					else {
+						console.log('ImgSum: Showing error...');
+						this._rtvDisplay.showError(errorMsg);
 					}
 				}
 			});
