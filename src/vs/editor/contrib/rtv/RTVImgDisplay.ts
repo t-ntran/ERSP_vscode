@@ -94,8 +94,23 @@ class RTVImgController implements IEditorContribution {
 			}
 
 			this.logger.imgSummaryStart(lineNumber, varname);
+
 			let c = utils.runImgSummary(program, lineNumber, varname);
 			this._pythonProcess = c;
+
+			// Show a spinner to indicate this is running
+			const spinner = setTimeout(() => {
+				if (this._imgDisplayBox) {
+					this._imgDisplayBox.destroy();
+				}
+				this._rtvDisplay.clearError();
+				this._imgDisplayBox = new RTVImgDisplayBox(
+					this._editor,
+					'<div class="spinner-border text-light" role="status"><span class="sr-only m-2">Loading...</span></div>',
+					top,
+					left);
+			},
+			500);
 
 			let errorMsg: string = '';
 			c.onStderr((msg) => {
@@ -104,16 +119,22 @@ class RTVImgController implements IEditorContribution {
 
 			c.onExit((exitCode, result) => {
 				this.logger.imgSummaryEnd(result);
+
+				// First make sure we remove any existing
+				// results.
+				clearTimeout(spinner);
+
+				if (this._imgDisplayBox) {
+					this._imgDisplayBox.destroy();
+				}
+
 				// When exitCode === null, it means the process was killed,
 				// so there is nothing else to do
 				if (exitCode !== null) {
 					this._pythonProcess = undefined;
 					if (exitCode === 0 && result !== undefined) {
-						if (this._imgDisplayBox) {
-							this._imgDisplayBox.destroy();
-						}
 						this._rtvDisplay.clearError();
-						this._imgDisplayBox = new RTVImgDisplayBox(this._editor, result,  top, left);
+						this._imgDisplayBox = new RTVImgDisplayBox(this._editor, result, top, left);
 					}
 					else {
 						console.log('ImgSum: Showing error...');

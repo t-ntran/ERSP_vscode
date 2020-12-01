@@ -114,8 +114,8 @@ class RunpyProcess implements Process {
 			}
 		};
 
-		pyodideWorker.addEventListener('message', this.eventListener);
-		pyodideWorker.postMessage(new RunpyWorkerRequest(this.id, `program_${this.id}.py`, program));
+		runpyWorker.addEventListener('message', this.eventListener);
+		runpyWorker.postMessage(new RunpyWorkerRequest(this.id, `program_${this.id}.py`, program));
 	}
 
 	onStdout(fn: (data: any) => void): void {
@@ -128,7 +128,7 @@ class RunpyProcess implements Process {
 
 	kill() {
 		this.killed = true;
-		pyodideWorker.removeEventListener('message', this.eventListener);
+		runpyWorker.removeEventListener('message', this.eventListener);
 
 		if (this.onResult) {
 			this.onResult('');
@@ -206,8 +206,8 @@ class ImgSummaryProcess implements Process {
 			}
 		};
 
-		pyodideWorker.addEventListener('message', this.eventListener);
-		pyodideWorker.postMessage(new ImgSumWorkerRequest(this.id, `imgsum_${this.id}.py`, program, line, varname));
+		imgsumWorker.addEventListener('message', this.eventListener);
+		imgsumWorker.postMessage(new ImgSumWorkerRequest(this.id, `imgsum_${this.id}.py`, program, line, varname));
 	}
 
 	onStdout(fn: (data: any) => void): void {
@@ -227,11 +227,20 @@ class ImgSummaryProcess implements Process {
 	}
 
 	kill() {
-		pyodideWorker.removeEventListener('message', this.eventListener);
+		imgsumWorker.removeEventListener('message', this.eventListener);
 	}
 
 	onExit(fn: (exitCode: any, result?: string) => void): void {
 		this.onResult = (result) => {
+			if (this.onOutput) {
+				this.onOutput(this.output);
+			}
+
+			if (this.onError) {
+				console.log('Calling onError for ImgSum');
+				this.onError(this.error);
+			}
+
 			fn((result && result !== '') ? 0 : 1, result);
 		};
 
@@ -364,10 +373,11 @@ export function isViewModeAllowed(m: ViewMode): boolean {
 let studyGroup: string | undefined = undefined;
 
 // Start the web worker
-const pyodideWorker = new Worker('/pyodide/webworker.js');
+const runpyWorker = new Worker('/pyodide/runpyWorker.js');
+const imgsumWorker = new Worker('/pyodide/imgsumWorker.js');
 let pyodideLoaded = false;
 
-const pyodideWorkerInitListener = (event: MessageEvent) =>
+const runpyWorkerInitListener = (event: MessageEvent) =>
 {
 	let msg = event.data as PyodideWorkerResponse;
 
@@ -375,7 +385,7 @@ const pyodideWorkerInitListener = (event: MessageEvent) =>
 	{
 		console.log('Pyodide loaded!');
 		pyodideLoaded = true;
-		pyodideWorker.removeEventListener('message', pyodideWorkerInitListener);
+		runpyWorker.removeEventListener('message', runpyWorkerInitListener);
 
 		const program = window.editor.getModel()!!.getLinesContent().join('\n');
 		runProgram(program).onExit((_code, _result) =>
@@ -392,5 +402,6 @@ const pyodideWorkerInitListener = (event: MessageEvent) =>
 	}
 };
 
-pyodideWorker.onerror = console.error;
-pyodideWorker.addEventListener('message', pyodideWorkerInitListener);
+imgsumWorker.onerror = console.error;
+runpyWorker.onerror = console.error;
+runpyWorker.addEventListener('message', runpyWorkerInitListener);
