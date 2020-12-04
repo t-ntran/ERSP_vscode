@@ -1089,6 +1089,7 @@ class RTVDisplayBox {
 		}
 
 		if (this.isConditionalLine() ||
+			this.isBreakLine() ||
 			(!this._controller.showBoxAtLoopStmt && this.isLoopLine())) {
 			let exception = false;
 			envs.forEach( env => {
@@ -1745,7 +1746,7 @@ export class RTVController implements IRTVController {
 		this._config.onDidUserChangeConfiguration = (e) => {
 			this.onUserChangeConfiguration(e);
 		};
-		this.changeViewMode(this.viewMode);
+		// this.changeViewMode(this.viewMode);
 
 		//this._modVarsInputField.getDomNode().style.width = '300px';
 		this.logger.projectionBoxCreated();
