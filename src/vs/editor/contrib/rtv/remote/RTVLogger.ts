@@ -1,38 +1,9 @@
 import { IRTVLogger } from 'vs/editor/contrib/rtv/RTVInterfaces';
 import { ICodeEditor } from 'vs/editor/browser/editorBrowser';
 
-class LogRequestData {
-	constructor(
-		public event: string,
-		public program ?: string,
-		public result ?: string) {}
-}
-
 export class RTVLogger implements IRTVLogger {
 	// States for various things we need to log
 	private synthRequestCounter: number = 0;
-	private currentFileName: string = 'unknown';
-
-	private now(): number {
-		return new Date().getTime();
-	}
-
-	private getCurrentFileName() {
-		let rs = this._editor.getModel()?.uri.toString();
-
-		if (rs) {
-			console.log(rs);
-			if (!rs.includes(this.currentFileName)) {
-				let start = rs.lastIndexOf('/') + 1;
-				let end = rs.length - start - 3;
-				this.currentFileName = rs.substr(start, end);
-			}
-		} else {
-			this.currentFileName = 'unknown';
-		}
-
-		return this.currentFileName;
-	}
 
 	private log(code: string, msg?: string, program ?: string, result ?: string): void {}
 
