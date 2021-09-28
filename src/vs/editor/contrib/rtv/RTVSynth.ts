@@ -8,6 +8,20 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 
 const SYNTHESIZING_MESSAGE: string = '# Please wait. Synthesizing...';
 
+const LIVE_EXECUTION: boolean = function() {
+	let rss: string | undefined = process.env['LIVE_EXECUTION'];
+	let rs: boolean = true;
+
+	if (rss) {
+		rss = rss.toLowerCase();
+		if (rss === 'false' || rss === '0' || rss === 'off') {
+			rs = false;
+		}
+	}
+
+	return rs;
+}();
+
 class SynthProcess {
 	private _resolve?: (value: SynthResult) => void = undefined;
 	private _reject?: () => void = undefined;
@@ -443,19 +457,23 @@ export class RTVSynth {
 			env[varname] = cell.innerText;
 			this.includedTimes.add(time);
 
-			error = await this.updateBoxValues();
+			if (LIVE_EXECUTION) {
+				error = await this.updateBoxValues();
 
-			if (error) {
-				// The input causes an exception.
-				// Rollback the changes and show the error.
-				env[varname] = oldVal;
+				if (error) {
+					// The input causes an exception.
+					// Rollback the changes and show the error.
+					env[varname] = oldVal;
 
-				if (!included) {
-					this.includedTimes.delete(env['time']);
+					if (!included) {
+						this.includedTimes.delete(env['time']);
+					}
+
+					this.addError(cell, error);
+					return false;
 				}
-
-				this.addError(cell, error);
-				return false;
+			} else {
+				this.setupTableCellContents();
 			}
 
 			this.highlightRow(row);
@@ -463,14 +481,19 @@ export class RTVSynth {
 			// Toggle off
 			this.includedTimes.delete(time);
 
-			// Update box values
-			let error = await this.updateBoxValues();
-			if (error) {
-				// Undoing this causes an exception.
-				// Rollback the changes and show the error.
-				this.includedTimes.add(time);
-				this.addError(cell, error);
-				return false;
+			if (LIVE_EXECUTION) {
+				// Update box values
+				let error = await this.updateBoxValues();
+				if (error) {
+					// Undoing this causes an exception.
+					// Rollback the changes and show the error.
+					this.includedTimes.add(time);
+					this.addError(cell, error);
+					return false;
+				}
+			}
+			else {
+				this.setupTableCellContents();
 			}
 
 			this.removeHighlight(row);
