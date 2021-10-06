@@ -307,9 +307,6 @@ class SynthProcess implements Process {
 		let result: string = await response.text();
 
 		if (this.onOutput) {
-			// First, we need to create the SynthResult JSON
-			const synthResult = Synth
-
 			// Output expects a weird byte array!
 			let array = new TextEncoder().encode(result);
 			this.onOutput(array);
