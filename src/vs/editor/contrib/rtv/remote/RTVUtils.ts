@@ -71,7 +71,7 @@ class ImgSumRequest extends PyodideRequest {
 		public varname: string
 	) {
 		super(RequestType.IMGSUM);
-		this.name = `imgum_${this.id}.py`;
+		this.name = `imgsum_${this.id}.py`;
 	}
 }
 
@@ -147,7 +147,7 @@ class PyodideProcess<R extends PyodideRequest> implements Process {
 		this.onError = fn;
 	}
 
-	toStdin(msg: string) {
+	toStdin(_msg: string) {
 		// TODO Implement
 	}
 
@@ -196,12 +196,13 @@ class PyodideProcess<R extends PyodideRequest> implements Process {
 	toPromise(): Promise<any> {
 		return new Promise((resolve, _reject) => {
 			this.resolve = (result) => {
+				if (this.onOutput) {
+					this.onOutput(this.output);
+				}
+				if (this.onError) {
+					this.onError(this.error);
+				}
 				const rs = [(result && result !== '') ? 0 : null, result];
-
-				// TODO Delete me
-				console.log('Resolving request with:');
-				console.log(rs);
-
 				resolve(rs);
 			};
 
@@ -215,70 +216,39 @@ class PyodideProcess<R extends PyodideRequest> implements Process {
 }
 
 class SynthProcess implements Process {
-
-	private onResult?: ((exitCode: any, result?: string) => void) = undefined;
-	// private onOutput?: ((data: any) => void) = undefined;
+	private onOutput?: ((data: any) => void) = undefined;
 	private onError?: ((data: any) => void) = undefined;
 
-	private result?: string = undefined;
 	private error: string = '';
-	private promise: Promise<string | undefined>;
-	private abortController: AbortController;
+	private promise?: Promise<string | undefined>;
+	private abortController?: AbortController;
 
-	constructor(problem: string) {
-		this.abortController = new AbortController();
-		const signal = this.abortController.signal;
-
-		this.promise = fetch(
-			'/synthesize',
-			{
-				method: 'POST',
-				body: problem,
-				mode: 'same-origin',
-				signal: signal
-			}).then(response => {
-			if (response && response.status < 200 || response.status >= 300 || response.redirected) {
-				// TODO Error handling
-				this.error = response.statusText;
-
-				if (this.onError) {
-					this.onError(this.error);
-				}
-
-				return Promise.reject();
-			} else {
-				return response.text();
-			}
-		}).then(result => {
-			this.result = result;
-
-			if (this.onResult) {
-				this.onResult(0, this.result);
-			}
-
-			return result;
-		}).catch(error => {
-			// TODO Error handling
-			this.error = error;
-
-			if (this.onError) {
-				this.onError(error);
-			}
-
-			if (this.onResult) {
-				this.onResult(1, error);
-			}
-
-			return error;
-		});
+	constructor() {
 	}
 
-	onStdout(_fn: (data: any) => void): void {
-		// TODO Implement
+	onStdout(fn: (data: any) => void): void {
+		this.onOutput = fn;
 	}
 
-	toStdin(msg: string): void {
-		// TODO Implement
+	/**
+	 * Sends the synthesis problem to the server.
+	 * The server's response is then sent to this process's stdout.
+	 *
+	 * @param problem The JSON-encoded SynthProblem
+	 **/
+	toStdin(problem: string): void {
+		this.promise =
+			this.synthesize(problem)
+				.catch(error => {
+					// TODO Error handling
+					this.error = error;
+
+					if (this.onError) {
+						this.onError(error);
+					}
+
+					return error;
+				});
 	}
 
 	onStderr(fn: (data: any) => void): void {
@@ -290,50 +260,65 @@ class SynthProcess implements Process {
 	}
 
 	kill() {
-		// TODO What happens to the promise?
-		this.abortController.abort();
+		this.abortController?.abort();
 	}
 
-	onExit(fn: (exitCode: any, result?: string) => void): void {
-		this.onResult = fn;
-
-		if (this.result) {
-			this.onResult(0, this.result);
-		}
+	onExit(_fn: (exitCode: any, result?: string) => void): void {
+		// TODO Implement?
 	}
 
 	toPromise(): Promise<any> {
-		return this.promise;
+		if (this.promise) {
+			return this.promise;
+		} else {
+			return Promise.resolve();
+		}
 	}
-}
 
-function saveProgram(program: string) {
-	// We need this for CSRF protection on the server
-	const csrfInput = document.getElementById('csrf-parameter') as HTMLInputElement;
-	const csrfToken = csrfInput.value;
-	const csrfHeaderName = csrfInput.name;
+	private async synthesize(problem: string): Promise<string | undefined> {
+		// TODO ?
+		// this.abortController?.abort();
 
-	const headers = new Headers();
-	headers.append('Content-Type', 'text/plain;charset=UTF-8');
-	headers.append(csrfHeaderName, csrfToken);
+		this.abortController = new AbortController();
+		const signal = this.abortController.signal;
+		const response = await fetch(
+			'/synthesize',
+			{
+				method: 'POST',
+				body: problem,
+				mode: 'same-origin',
+				signal: signal
+			});
 
-	fetch(
-		'/save',
-		{
-			method: 'POST',
-			body: program,
-			mode: 'same-origin',
-			headers: headers
-		}).
-		then(response => {
-			if (response && response.status < 200 || response.status >= 300 || response.redirected) {
-				// Lab time must have ended.
-				document.location.reload();
+		if (!response || response.status < 200 || response.status >= 300 || response.redirected) {
+			console.error('Synthesis response failed!');
+
+			if (response) {
+				this.error = response.statusText;
+
+				if (this.onError) {
+					this.onError(this.error);
+				}
 			}
-		}).
-		catch(_ => {
-			document.location.reload();
-		});
+
+			return;
+		}
+
+		let result: string = await response.text();
+
+		if (this.onOutput) {
+			// First, we need to create the SynthResult JSON
+			const synthResult = Synth
+
+			// Output expects a weird byte array!
+			let array = new TextEncoder().encode(result);
+			this.onOutput(array);
+		} else {
+			console.error('Synthesis result recevied, but onOutput was ', this.onOutput);
+		}
+
+		return result;
+	}
 }
 
 export function runProgram(program: string, values?: any): Process {
@@ -342,14 +327,9 @@ export function runProgram(program: string, values?: any): Process {
 		return new EmptyProcess();
 	}
 
-	saveProgram(program);
-
 	values = JSON.stringify(values);
-	return new PyodideProcess(new RunpyRequest(program, values));
-}
 
-export function synthesizeSnippet(problem: string): Process {
-	return new SynthProcess(problem);
+	return new PyodideProcess(new RunpyRequest(program, values));
 }
 
 export function runImgSummary(program: string, line: number, varname: string): Process {
@@ -367,12 +347,28 @@ export function runImgSummary(program: string, line: number, varname: string): P
 export async function validate(input: string): Promise<string | undefined> {
 	let process = new PyodideProcess(new SnipPyRequest('validate', input));
 	let results = (await process.toPromise())[1];
-
 	return results;
 }
 
+let synthesizer: SynthProcess | undefined = undefined;
+export function synthProcess(): Process {
+	if (!synthesizer) {
+		// Restart the synth
+		if (logger) {
+			logger.synthProcessStart();
+		}
+
+		synthesizer = new SynthProcess();
+	}
+	return synthesizer;
+}
+
+let logger: IRTVLogger | undefined = undefined;
 export function getLogger(editor: ICodeEditor): IRTVLogger {
-	return new RTVLogger(editor);
+	if (!logger) {
+		logger = new RTVLogger(editor);
+	}
+	return logger;
 }
 
 // Assuming the server is running on a unix system
@@ -382,45 +378,8 @@ export const EOL: string = '\n';
  * Don't allow switching views unless we find the set cookie
  */
 export function isViewModeAllowed(m: ViewMode): boolean {
-	let rs: boolean = false;
-
-	if (!studyGroup) {
-		for (let cookie of document.cookie.split(';')) {
-			cookie = cookie.trim();
-			if (cookie.startsWith('USER_STUDY_GROUP')) {
-				studyGroup = cookie.slice('USER_STUDY_GROUP'.length + 1);
-			}
-		}
-	}
-
-	switch (studyGroup) {
-		case 'None':
-			rs = true;
-			break;
-		case 'GroupOne':
-			rs = m === ViewMode.Full || m === ViewMode.CursorAndReturn;
-			break;
-		case 'GroupTwo':
-			rs = m === ViewMode.Stealth;
-			break;
-		default:
-			console.error('USER_STUDY_GROUP cookie not recognized: ' + studyGroup);
-			rs = m === ViewMode.Stealth;
-			break;
-	}
-
-	if (rs) {
-		// Set the expiration to one hour
-		let time: Date = new Date();
-		time.setTime(time.getTime() + 60 * 60 * 1000);
-		document.cookie = `PROJECTION_BOX_VIEW=${m.toString()};expires=${time.toUTCString()};`;
-	}
-
-	return rs;
+	return true;
 }
-
-// Used to cache the results
-let studyGroup: string | undefined = undefined;
 
 // Start the web worker
 const pyodideWorker = new Worker('/pyodide/webworker.js');

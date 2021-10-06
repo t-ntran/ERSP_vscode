@@ -8,19 +8,7 @@ import { IThemeService } from 'vs/platform/theme/common/themeService';
 
 const SYNTHESIZING_MESSAGE: string = '# Please wait. Synthesizing...';
 
-const LIVE_EXECUTION: boolean = function() {
-	let rss: string | undefined = process.env['LIVE_EXECUTION'];
-	let rs: boolean = true;
-
-	if (rss) {
-		rss = rss.toLowerCase();
-		if (rss === 'false' || rss === '0' || rss === 'off') {
-			rs = false;
-		}
-	}
-
-	return rs;
-}();
+const LIVE_EXECUTION: boolean = true;
 
 class SynthProcess {
 	private _resolve?: (value: SynthResult) => void = undefined;
