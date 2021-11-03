@@ -1,7 +1,4 @@
-/* import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
- */
+/* eslint-disable header */
 
 import 'vs/css!./rtv';
 import { ICursorPositionChangedEvent } from 'vs/editor/common/controller/cursorEvents';
@@ -27,7 +24,7 @@ import { Registry } from 'vs/platform/registry/common/platform';
 import { Extensions, IConfigurationNode, IConfigurationRegistry } from 'vs/platform/configuration/common/configurationRegistry';
 import { localize } from 'vs/nls';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
-import { Action, IAction, Separator, SubmenuAction} from 'vs/base/common/actions';
+import { Action, IAction, Separator, SubmenuAction } from 'vs/base/common/actions';
 import { IMouseWheelEvent } from 'vs/base/browser/mouseEvent';
 import { IKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
@@ -45,9 +42,10 @@ import { DelayedRunAtMostOne, RunProcess, RunResult, IRTVController, IRTVLogger,
 import { getUtils, isHtmlEscape, removeHtmlEscape, TableElement } from 'vs/editor/contrib/rtv/RTVUtils';
 import { Button } from 'vs/base/browser/ui/button/button';
 import { attachButtonStyler } from 'vs/platform/theme/common/styler';
-// import { RTVSynth } from './RTVSynth';
 import { RTVSynthController } from 'vs/editor/contrib/rtv/RTVSynthController';
 import { Emitter, Event } from 'vs/base/common/event';
+
+const htmlPolicy = window.trustedTypes?.createPolicy('rtv', { createHTML: (value) => value });
 
 function indent(s: string): number {
 	return s.length - s.trimLeft().length;
@@ -234,7 +232,7 @@ class RTVOutputDisplayBox {
 		this._box.style.right = '14px';
 		this._box.style.height = 'auto';
 		this._box.style.width = '500px';
-		this._box.innerHTML = this._html;
+		this._box.innerHTML = htmlPolicy ? htmlPolicy.createHTML(this._html) as unknown as string : this._html;
 		this._box.style.display = 'inline-block';
 		this._box.style.overflowY = 'scroll';
 		this._box.style.overflowX = 'auto';
@@ -271,7 +269,7 @@ class RTVOutputDisplayBox {
 	}
 
 	public setContent(s: string): void {
-		this._box.innerHTML = s;
+		this._box.innerHTML = htmlPolicy ? htmlPolicy.createHTML(s) as unknown as string : s;
 	}
 
 	public getContent(): string {
@@ -279,7 +277,7 @@ class RTVOutputDisplayBox {
 	}
 
 	public clearContent(): void {
-		this._box.innerHTML = this._html;
+		this._box.innerHTML = this._box.innerHTML = htmlPolicy ? htmlPolicy.createHTML(this._html) as unknown as string : this._html;
 	}
 
 	public show(): void {
@@ -297,7 +295,7 @@ class RTVOutputDisplayBox {
 		this._box.style.opacity = '0';
 	}
 
-	public isHidden() : boolean {
+	public isHidden(): boolean {
 		return this._box.style.opacity === '0';
 	}
 
@@ -315,7 +313,7 @@ class RTVOutputDisplayBox {
 
 	public setOutAndErrMsg(outputMsg: string, errorMsg: string) {
 
-		function escapeHTML(unsafe: string) : string {
+		function escapeHTML(unsafe: string): string {
 			return unsafe
 				.replace(/&/g, '&amp;')
 				.replace(/</g, '&lt;')
@@ -331,7 +329,7 @@ class RTVOutputDisplayBox {
 				let errorStartIndex = 0;
 				let i = 0;
 
-				for (i = errors.length-1; i >= 0; i--) {
+				for (i = errors.length - 1; i >= 0; i--) {
 					let line = errors[i];
 					if (line.match(/line \d+/g) !== null) { // returns an Array object
 						errorStartIndex = i;
@@ -342,7 +340,7 @@ class RTVOutputDisplayBox {
 				let errorStartLine = errors[i];
 				errors[i] = errorStartLine.split(',').slice(1,).join(',');
 				let err = `<div style='color:red;'>${errors[errors.length - 2]}</div>`;
-				errors[errors.length-2] = err;
+				errors[errors.length - 2] = err;
 				errorMsgStyled = errors.slice(errorStartIndex, -1).join('\n'); // related error starts from the fifth to the last substring
 			}
 
@@ -404,7 +402,7 @@ class RTVRunButton {
 		this._box.style.display = 'none';
 	}
 
-	public isHidden() : boolean {
+	public isHidden(): boolean {
 		return this._box.style.display === 'none' ||
 			this._box.style.opacity === '0';
 	}
@@ -469,10 +467,8 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		this._box.style.fontWeight = fontInfo.fontWeight;
 		this._box.style.fontSize = `${fontInfo.fontSize}px`;
 
-		this._editor.onDidChangeConfiguration((e: ConfigurationChangedEvent) =>
-		{
-			if (e.hasChanged(EditorOption.fontInfo))
-			{
+		this._editor.onDidChangeConfiguration((e: ConfigurationChangedEvent) => {
+			if (e.hasChanged(EditorOption.fontInfo)) {
 				const fontInfo = this._editor.getOption(EditorOption.fontInfo);
 				this._box.style.fontFamily = fontInfo.fontFamily;
 				this._box.style.fontWeight = fontInfo.fontWeight;
@@ -797,11 +793,12 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			// Otherwise, the divs in a row could become invisible if they are
 			// all empty
 			cellContent = document.createElement('div');
-			cellContent.innerHTML = '&nbsp';
+			cellContent.innerHTML = htmlPolicy ? htmlPolicy.createHTML('&nbsp') as unknown as string : '&nbsp';
 		}
 		else if (isHtmlEscape(s)) {
+			const content = removeHtmlEscape(s);
 			cellContent = document.createElement('div');
-			cellContent.innerHTML = removeHtmlEscape(s);
+			cellContent.innerHTML = htmlPolicy ? htmlPolicy.createHTML(content) as unknown as string : content;
 		} else {
 			let renderedText = r.render(new MarkdownString(s));
 			cellContent = renderedText.element;
@@ -961,7 +958,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		let envs;
 
 		if (allEnvs) {
-			envs = allEnvs[this.lineNumber-1];
+			envs = allEnvs[this.lineNumber - 1];
 		} else {
 			envs = this._controller.envs[this.lineNumber - 1];
 		}
@@ -1013,7 +1010,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 	public updateContent(allEnvs?: any[], updateInPlace?: boolean, outputVars?: string[], prevEnvs?: Map<number, any>) {
 
 		// if computeEnvs returns false, there is no content to display
-		let done =this.computeEnvs(allEnvs);
+		let done = this.computeEnvs(allEnvs);
 		if (done) {
 			return;
 		}
@@ -1041,12 +1038,12 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			// then add active loop variables, if we haven't done it already
 			if (!added_loop_vars && env['$'] !== '') {
 				added_loop_vars = true;
-				// env['$'] is a comma-seperated list of line numbers
+				// env['$'] is a comma-separated list of line numbers
 				let loop_ids: string[] = env['$'].split(',');
-				loop_ids.forEach( loop_lineno => {
+				loop_ids.forEach(loop_lineno => {
 					let loop_vars = this._controller.writes[loop_lineno];
 					if (loop_vars !== undefined) {
-						loop_vars.forEach( v => {
+						loop_vars.forEach(v => {
 							this._allVars.add(v);
 						});
 					}
@@ -1087,7 +1084,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			const oldVars = vars;
 			vars = new Set();
 			for (const v of oldVars) {
-				// remove any variables newly defined by the synthsizer
+				// remove any variables newly defined by the synthesizer
 				let rs = true;
 				if (outVarNames.includes(v)) {
 					for (const env of envs) {
@@ -1380,7 +1377,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		let addButton = document.createElement('div');
 		menubar.appendChild(addButton);
 		addButton.className = 'menubar-menu-button';
-		addButton.innerHTML = '+';
+		addButton.innerHTML = htmlPolicy ? htmlPolicy.createHTML('+') as unknown as string : '+';
 		addButton.onclick = (e) => {
 			e.stopImmediatePropagation();
 			this._controller.contextMenuService.showContextMenu({
@@ -1395,7 +1392,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 	}
 
-	private createActionsForPlusMenu(): (IAction )[] {
+	private createActionsForPlusMenu(): (IAction)[] {
 		let res: IAction[] = [];
 		this.notDisplayedVars().forEach((v) => {
 			res.push(new SubmenuAction('id', 'Add ' + v, [
@@ -1487,7 +1484,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		this._box.style.transform = 'scale(' + this._zoom.toString() + ')';
 		this._box.style.opacity = this._opacity.toString();
 
-		let maxWidth = this._editor.getScrollWidth()-left-10;
+		let maxWidth = this._editor.getScrollWidth() - left - 10;
 		this._box.style.maxWidth = maxWidth.toString() + 'px';
 
 		// update the line
@@ -1578,9 +1575,9 @@ class LoopFocusController {
 			let range2 = new Range(end, 1, maxline, model.getLineMaxColumn(maxline));
 			let seedLineContent = lines[seedLineno - 1];
 			let range3 = new Range(seedLineno, indent(seedLineContent) + 1, seedLineno, seedLineContent.length + 1);
-			this._decoration1 = this._controller.addDecoration(range1, { inlineClassName: 'rtv-code-fade' });
-			this._decoration2 = this._controller.addDecoration(range2, { inlineClassName: 'rtv-code-fade' });
-			this._decoration3 = this._controller.addDecoration(range3, { className: 'squiggly-info' });
+			this._decoration1 = this._controller.addDecoration(range1, { description: 'RTV Code Fade', inlineClassName: 'rtv-code-fade' });
+			this._decoration2 = this._controller.addDecoration(range2, { description: 'RTV Code Fade', inlineClassName: 'rtv-code-fade' });
+			this._decoration3 = this._controller.addDecoration(range3, { description: 'Squiggly Info', className: 'squiggly-info' });
 
 			let endToken = '## END LOOP';
 			if (addEndToken && !lines[end - 2].endsWith(endToken)) {
@@ -1673,7 +1670,7 @@ export class RTVController implements IRTVController {
 	private _peekTimer: ReturnType<typeof setTimeout> | null = null;
 	private _globalDeltaVarSet: DeltaVarSet = new DeltaVarSet();
 	private _showErrorDelay: DelayedRunAtMostOne = new DelayedRunAtMostOne();
-	private _outputBox: RTVOutputDisplayBox| null = null;
+	private _outputBox: RTVOutputDisplayBox | null = null;
 	private _runButton: RTVRunButton | null = null;
 	// private _synthesis: RTVSynth;
 	private _synthesis: RTVSynthController;
@@ -2119,7 +2116,7 @@ export class RTVController implements IRTVController {
 	}
 
 	private isTextEditor() {
-		let editorMode = this._editor.getModel()?.getModeId();
+		let editorMode = this._editor.getModel()?.getLanguageId();
 		return editorMode !== undefined && editorMode !== 'Log'; //'Log' is the language identifier for the output editor
 	}
 
@@ -2229,13 +2226,13 @@ export class RTVController implements IRTVController {
 
 						if (lineContent.endsWith('??') &&
 							(lineContent.startsWith('return ') || lineContent.split('=').length === 2)) {
-								this._synthesis.startSynthesis(i)
-									.catch((e) => {
-										console.error('Synthesis failed with exception:');
-										console.error(e);
-										this._synthesis.stopSynthesis();
-									});
-								return;
+							this._synthesis.startSynthesis(i)
+								.catch((e) => {
+									console.error('Synthesis failed with exception:');
+									console.error(e);
+									this._synthesis.stopSynthesis();
+								});
+							return;
 						}
 					}
 				}
@@ -2546,7 +2543,7 @@ export class RTVController implements IRTVController {
 			this.clearError();
 			this.showError(errorMsg);
 		})
-		.catch((_err) => {});
+			.catch((_err) => { });
 	}
 
 	private showError(errorMsg: string) {
@@ -2642,7 +2639,11 @@ export class RTVController implements IRTVController {
 
 		}
 		let range = new Range(lineNumber, colStart, lineNumber, colEnd);
-		let options = { className: 'squiggly-error', hoverMessage: new MarkdownString(description) };
+		let options = {
+			description: 'Error Squiggly',
+			className: 'squiggly-error',
+			hoverMessage: new MarkdownString(description)
+		};
 		this._errorDecorationID = this.addDecoration(range, options);
 	}
 
@@ -2736,7 +2737,7 @@ export class RTVController implements IRTVController {
 
 		try {
 			// Just delay
-			await this.runProgramDelay.run(delay, async () => {});
+			await this.runProgramDelay.run(delay, async () => { });
 		} catch (_err) {
 			// The timer was cancelled. Just return.
 			this._eventEmitter.fire(new BoxUpdateEvent(false, true, false));
@@ -3250,7 +3251,7 @@ export class RTVController implements IRTVController {
 				this.stopFocus();
 			}
 		}
-		if (e.keyCode === KeyCode.KEY_P) {
+		if (e.keyCode === KeyCode.KeyP) {
 			this._peekCounter = 0;
 			if (this._peekTimer !== null) {
 				clearTimeout(this._peekTimer);
@@ -3271,7 +3272,7 @@ export class RTVController implements IRTVController {
 			}
 		}
 
-		if (e.keyCode === KeyCode.KEY_P && e.altKey && e.ctrlKey) { // test this out
+		if (e.keyCode === KeyCode.KeyP && e.altKey && e.ctrlKey) { // test this out
 			this._peekCounter = this._peekCounter + 1;
 			if (this._peekCounter > 1) {
 				if (this._peekTimer !== null) {
@@ -3644,7 +3645,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.fullview',
 	'Full View',
-	KeyMod.Alt | KeyCode.KEY_1,
+	KeyMod.Alt | KeyCode.Digit1,
 	localize('rtv.fullview', 'Full View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Full);
@@ -3654,7 +3655,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.cursorview',
 	'Cursor and Return View',
-	KeyMod.Alt | KeyCode.KEY_2,
+	KeyMod.Alt | KeyCode.Digit2,
 	localize('rtv.cursorview', 'Cursor and Return View'),
 	(c) => {
 		c.changeViewMode(ViewMode.CursorAndReturn);
@@ -3664,7 +3665,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.compactview',
 	'Compact View',
-	KeyMod.Alt | KeyCode.KEY_3,
+	KeyMod.Alt | KeyCode.Digit3,
 	localize('rtv.compactview', 'Compact View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Compact);
@@ -3674,7 +3675,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.stealthview',
 	'Stealth View',
-	KeyMod.Alt | KeyCode.KEY_4,
+	KeyMod.Alt | KeyCode.Digit4,
 	localize('rtv.stealthview', 'Stealth View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Stealth);
@@ -3684,7 +3685,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.zoomin',
 	'Flip Zoom',
-	KeyMod.Alt | KeyCode.US_BACKSLASH,
+	KeyMod.Alt | KeyCode.Backslash,
 	localize('rtv.zoomin', 'Flip Zoom'),
 	(c) => {
 		c.flipZoom();
@@ -3764,7 +3765,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.focusOnLoop',
 	'Focus on Loop using Localized Live Programming',
-	KeyMod.Alt | KeyCode.US_DOT,
+	KeyMod.Alt | KeyCode.Period,
 	localize('rtv.focusOnLoop', 'Focus on Loop using Localized Live Programming'),
 	(c) => {
 		c.focusOnLoopWithSeed();
@@ -3792,7 +3793,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.addDelay',
 	'Increase the projection box delay',
-	KeyMod.Alt | KeyCode.US_EQUAL,
+	KeyMod.Alt | KeyCode.Equal,
 	localize('rtv.addDelay', 'Increase the projection box delay'),
 	(c) => {
 		c.increaseDelay();
@@ -3802,7 +3803,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.subDelay',
 	'Decrease the projection box delay',
-	KeyMod.Alt | KeyCode.US_MINUS,
+	KeyMod.Alt | KeyCode.Minus,
 	localize('rtv.subDelay', 'Decrease the projection box delay'),
 	(c) => {
 		c.decreaseDelay();
