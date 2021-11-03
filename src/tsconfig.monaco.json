@@ -27,7 +27,7 @@
 	"exclude": [
 		"node_modules/*",
 		"vs/editor/contrib/rtv/frontend**",
-		"vs/editor/contrib/rtv/frontend**"
+		"vs/editor/contrib/rtv/frontend**",
 		"vs/platform/files/browser/htmlFileSystemProvider.ts",
 		"vs/platform/assignment/*"
 	]

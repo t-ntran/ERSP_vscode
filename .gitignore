@@ -18,3 +18,5 @@ src/__pycache__
 .idea
 *.out
 /.profile-oss
+.env
+

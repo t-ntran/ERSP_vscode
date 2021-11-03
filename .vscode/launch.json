@@ -556,9 +556,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "PYTHON3",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "PYTHON3",
+				"default": ""
 			}
 		},
 		{
@@ -566,9 +566,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "RUNPY",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "RUNPY",
+				"default": ""
 			}
 		},
 		{
@@ -576,9 +576,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "IMGSUM",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "IMGSUM",
+				"default": ""
 			}
 		},
 		{
@@ -586,9 +586,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "SNIPPY_UTILS",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "SNIPPY_UTILS",
+				"default": ""
 			}
 		},
 		{
@@ -596,9 +596,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "JAVA",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "JAVA",
+				"default": ""
 			}
 		},
 		{
@@ -606,9 +606,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "HEAP",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "HEAP",
+				"default": ""
 			}
 		},
 		{
@@ -616,9 +616,9 @@
 			"type": "command",
 			"command": "extension.commandvariable.file.content",
 			"args": {
-			  "fileName": "${workspaceFolder}/.env",
-			  "key": "SYNTH",
-			  "default": ""
+				"fileName": "${workspaceFolder}/.env",
+				"key": "SYNTH",
+				"default": ""
 			}
 		},
 	]
