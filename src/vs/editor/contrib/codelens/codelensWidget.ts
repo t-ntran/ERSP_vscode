@@ -3,18 +3,15 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import 'vs/css!./codelensWidget';
 import * as dom from 'vs/base/browser/dom';
-import { IViewZone, IContentWidget, IActiveCodeEditor, IContentWidgetPosition, ContentWidgetPositionPreference, IViewZoneChangeAccessor } from 'vs/editor/browser/editorBrowser';
+import { renderLabelWithIcons } from 'vs/base/browser/ui/iconLabel/iconLabels';
+import 'vs/css!./codelensWidget';
+import { ContentWidgetPositionPreference, IActiveCodeEditor, IContentWidget, IContentWidgetPosition, IViewZone, IViewZoneChangeAccessor } from 'vs/editor/browser/editorBrowser';
 import { Range } from 'vs/editor/common/core/range';
 import { IModelDecorationsChangeAccessor, IModelDeltaDecoration, ITextModel } from 'vs/editor/common/model';
 import { ModelDecorationOptions } from 'vs/editor/common/model/textModel';
-import { Command, CodeLens } from 'vs/editor/common/modes';
-import { editorCodeLensForeground } from 'vs/editor/common/view/editorColorRegistry';
+import { CodeLens, Command } from 'vs/editor/common/modes';
 import { CodeLensItem } from 'vs/editor/contrib/codelens/codelens';
-import { editorActiveLinkForeground } from 'vs/platform/theme/common/colorRegistry';
-import { registerThemingParticipant } from 'vs/platform/theme/common/themeService';
-import { renderCodicons } from 'vs/base/browser/codicons';
 
 class CodeLensViewZone implements IViewZone {
 
@@ -43,6 +40,11 @@ class CodeLensViewZone implements IViewZone {
 			this._lastHeight = height;
 			this._onHeight();
 		}
+	}
+
+	isVisible(): boolean {
+		return this._lastHeight !== 0
+			&& this.domNode.hasAttribute('monaco-visible-view-zone');
 	}
 }
 
@@ -88,12 +90,12 @@ class CodeLensContentWidget implements IContentWidget {
 			}
 			hasSymbol = true;
 			if (lens.command) {
-				const title = renderCodicons(lens.command.title.trim());
+				const title = renderLabelWithIcons(lens.command.title.trim());
 				if (lens.command.id) {
-					children.push(dom.$('a', { id: String(i) }, ...title));
+					children.push(dom.$('a', { id: String(i), title: lens.command.tooltip }, ...title));
 					this._commands.set(String(i), lens.command);
 				} else {
-					children.push(dom.$('span', undefined, ...title));
+					children.push(dom.$('span', { title: lens.command.tooltip }, ...title));
 				}
 				if (i + 1 < lenses.length) {
 					children.push(dom.$('span', undefined, '\u00a0|\u00a0'));
@@ -289,7 +291,7 @@ export class CodeLensWidget {
 	}
 
 	computeIfNecessary(model: ITextModel): CodeLensItem[] | null {
-		if (!this._viewZone.domNode.hasAttribute('monaco-visible-view-zone')) {
+		if (!this._viewZone.isVisible()) {
 			return null;
 		}
 
@@ -348,16 +350,3 @@ export class CodeLensWidget {
 		return this._data;
 	}
 }
-
-registerThemingParticipant((theme, collector) => {
-	const codeLensForeground = theme.getColor(editorCodeLensForeground);
-	if (codeLensForeground) {
-		collector.addRule(`.monaco-editor .codelens-decoration { color: ${codeLensForeground}; }`);
-		collector.addRule(`.monaco-editor .codelens-decoration .codicon { color: ${codeLensForeground}; }`);
-	}
-	const activeLinkForeground = theme.getColor(editorActiveLinkForeground);
-	if (activeLinkForeground) {
-		collector.addRule(`.monaco-editor .codelens-decoration > a:hover { color: ${activeLinkForeground} !important; }`);
-		collector.addRule(`.monaco-editor .codelens-decoration > a:hover .codicon { color: ${activeLinkForeground} !important; }`);
-	}
-});

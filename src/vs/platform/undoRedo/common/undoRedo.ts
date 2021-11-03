@@ -3,9 +3,9 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
-import { URI } from 'vs/base/common/uri';
 import { IDisposable } from 'vs/base/common/lifecycle';
+import { URI } from 'vs/base/common/uri';
+import { createDecorator } from 'vs/platform/instantiation/common/instantiation';
 
 export const IUndoRedoService = createDecorator<IUndoRedoService>('undoRedoService');
 
@@ -18,6 +18,10 @@ export interface IResourceUndoRedoElement {
 	readonly type: UndoRedoElementType.Resource;
 	readonly resource: URI;
 	readonly label: string;
+	/**
+	 * Show a message to the user confirming when trying to undo this element
+	 */
+	readonly confirmBeforeUndo?: boolean;
 	undo(): Promise<void> | void;
 	redo(): Promise<void> | void;
 }
@@ -26,6 +30,10 @@ export interface IWorkspaceUndoRedoElement {
 	readonly type: UndoRedoElementType.Workspace;
 	readonly resources: readonly URI[];
 	readonly label: string;
+	/**
+	 * Show a message to the user confirming when trying to undo this element
+	 */
+	readonly confirmBeforeUndo?: boolean;
 	undo(): Promise<void> | void;
 	redo(): Promise<void> | void;
 

@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as assert from 'assert';
-import { isMacintosh, isWindows } from 'vs/base/common/platform';
+import { isWindows } from 'vs/base/common/platform';
 
 function testErrorMessage(module: string): string {
 	return `Unable to load "${module}" dependency. It was probably not compiled for the right operating system architecture or had missing build tools.`;
@@ -37,30 +37,19 @@ suite('Native Modules (all platforms)', () => {
 		assert.ok(typeof spdlog.createRotatingLogger === 'function', testErrorMessage('spdlog'));
 	});
 
-	test('v8-inspect-profiler', async () => {
-		const profiler = await import('v8-inspect-profiler');
-		assert.ok(typeof profiler.startProfiling === 'function', testErrorMessage('v8-inspect-profiler'));
-	});
-
-	test('vscode-nsfw', async () => {
+	test('nsfw', async () => {
 		const nsfWatcher = await import('vscode-nsfw');
-		assert.ok(typeof nsfWatcher === 'function', testErrorMessage('vscode-nsfw'));
+		assert.ok(typeof nsfWatcher === 'function', testErrorMessage('nsfw'));
 	});
 
-	test('vscode-sqlite3', async () => {
-		const sqlite3 = await import('vscode-sqlite3');
-		assert.ok(typeof sqlite3.Database === 'function', testErrorMessage('vscode-sqlite3'));
+	test('parcel', async () => {
+		const parcelWatcher = await import('@parcel/watcher');
+		assert.ok(typeof parcelWatcher.subscribe === 'function', testErrorMessage('parcel'));
 	});
-});
 
-(!isMacintosh ? suite.skip : suite)('Native Modules (macOS)', () => {
-
-	test('chokidar (fsevents)', async () => {
-		const chokidar = await import('chokidar');
-		const watcher = chokidar.watch(__dirname);
-		assert.ok(watcher.options.useFsEvents, testErrorMessage('chokidar (fsevents)'));
-
-		return watcher.close();
+	test('sqlite3', async () => {
+		const sqlite3 = await import('@vscode/sqlite3');
+		assert.ok(typeof sqlite3.Database === 'function', testErrorMessage('@vscode/sqlite3'));
 	});
 });
 
@@ -90,7 +79,7 @@ suite('Native Modules (all platforms)', () => {
 	test('vscode-windows-ca-certs', async () => {
 		// @ts-ignore Windows only
 		const windowsCerts = await import('vscode-windows-ca-certs');
-		const store = windowsCerts();
+		const store = new windowsCerts.Crypt32();
 		assert.ok(windowsCerts, testErrorMessage('vscode-windows-ca-certs'));
 		let certCount = 0;
 		try {

@@ -4,7 +4,7 @@
 		"If you want to provide a fix or improvement, please create a pull request against the original repository.",
 		"Once accepted there, we are happy to receive an update request."
 	],
-	"version": "https://github.com/jeff-hykin/cpp-textmate-grammar/commit/ad9f1541fd376740c30a7257614c9cb5ed25005d",
+	"version": "https://github.com/jeff-hykin/cpp-textmate-grammar/commit/db3f4e4a5d8335b2f6d689bec490c23f8313630f",
 	"name": "C++",
 	"scopeName": "source.cpp.embedded.macro",
 	"patterns": [
@@ -299,9 +299,6 @@
 					}
 				},
 				{
-					"include": "#comments_context"
-				},
-				{
 					"include": "#comments"
 				},
 				{
@@ -462,9 +459,6 @@
 						{
 							"match": ":",
 							"name": "punctuation.separator.delimiter.colon.assembly.cpp"
-						},
-						{
-							"include": "#comments_context"
 						},
 						{
 							"include": "#comments"
@@ -4239,6 +4233,9 @@
 			"patterns": [
 				{
 					"include": "#ever_present_context"
+				},
+				{
+					"include": "#string_context"
 				},
 				{
 					"include": "#parameter"

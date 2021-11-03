@@ -2,10 +2,14 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { Token } from 'markdown-it';
+import Token = require('markdown-it/lib/token');
 import * as vscode from 'vscode';
 import { MarkdownEngine } from '../markdownEngine';
 import { TableOfContentsProvider, TocEntry } from '../tableOfContentsProvider';
+
+interface MarkdownItTokenWithMap extends Token {
+	map: [number, number];
+}
 
 export default class MarkdownSmartSelect implements vscode.SelectionRangeProvider {
 
@@ -96,8 +100,8 @@ function createHeaderRange(header: TocEntry, isClosestHeaderToPosition: boolean,
 	}
 }
 
-function getBlockTokensForPosition(tokens: Token[], position: vscode.Position, parent?: vscode.SelectionRange): Token[] {
-	const enclosingTokens = tokens.filter(token => token.map && (token.map[0] <= position.line && token.map[1] > position.line) && (!parent || (token.map[0] >= parent.range.start.line && token.map[1] <= parent.range.end.line + 1)) && isBlockElement(token));
+function getBlockTokensForPosition(tokens: Token[], position: vscode.Position, parent?: vscode.SelectionRange): MarkdownItTokenWithMap[] {
+	const enclosingTokens = tokens.filter((token): token is MarkdownItTokenWithMap => !!token.map && (token.map[0] <= position.line && token.map[1] > position.line) && (!parent || (token.map[0] >= parent.range.start.line && token.map[1] <= parent.range.end.line + 1)) && isBlockElement(token));
 	if (enclosingTokens.length === 0) {
 		return [];
 	}
@@ -105,7 +109,7 @@ function getBlockTokensForPosition(tokens: Token[], position: vscode.Position, p
 	return sortedTokens;
 }
 
-function createBlockRange(block: Token, document: vscode.TextDocument, cursorLine: number, parent?: vscode.SelectionRange): vscode.SelectionRange | undefined {
+function createBlockRange(block: MarkdownItTokenWithMap, document: vscode.TextDocument, cursorLine: number, parent?: vscode.SelectionRange): vscode.SelectionRange | undefined {
 	if (block.type === 'fence') {
 		return createFencedRange(block, cursorLine, document, parent);
 	} else {
@@ -144,7 +148,7 @@ function createInlineRange(document: vscode.TextDocument, cursorPosition: vscode
 	return inlineCodeBlockSelection || linkSelection || comboSelection || boldSelection || italicSelection;
 }
 
-function createFencedRange(token: Token, cursorLine: number, document: vscode.TextDocument, parent?: vscode.SelectionRange): vscode.SelectionRange {
+function createFencedRange(token: MarkdownItTokenWithMap, cursorLine: number, document: vscode.TextDocument, parent?: vscode.SelectionRange): vscode.SelectionRange {
 	const startLine = token.map[0];
 	const endLine = token.map[1] - 1;
 	const onFenceLine = cursorLine === startLine || cursorLine === endLine;
@@ -162,9 +166,9 @@ function createFencedRange(token: Token, cursorLine: number, document: vscode.Te
 }
 
 function createBoldRange(lineText: string, cursorChar: number, cursorLine: number, parent?: vscode.SelectionRange): vscode.SelectionRange | undefined {
-	const regex = /(?:^|(?<=\s))(?:\*\*\s*([^*]+)(?:\*\s*([^*]+)\s*?\*)*([^*]+)\s*?\*\*)/g;
+	const regex = /(?:\*\*([^*]+)(?:\*([^*]+)([^*]+)\*)*([^*]+)\*\*)/g;
 	const matches = [...lineText.matchAll(regex)].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length >= cursorChar);
-	if (matches.length > 0) {
+	if (matches.length) {
 		// should only be one match, so select first and index 0 contains the entire match
 		const bold = matches[0][0];
 		const startIndex = lineText.indexOf(bold);
@@ -177,11 +181,20 @@ function createBoldRange(lineText: string, cursorChar: number, cursorLine: numbe
 }
 
 function createOtherInlineRange(lineText: string, cursorChar: number, cursorLine: number, isItalic: boolean, parent?: vscode.SelectionRange): vscode.SelectionRange | undefined {
-	const regex = isItalic ? /(?:^|(?<=\s))(?:\*\s*([^*]+)(?:\*\*\s*([^*]+)\s*?\*\*)*([^*]+)\s*?\*)/g : /\`[^\`]*\`/g;
-	const matches = [...lineText.matchAll(regex)].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length >= cursorChar);
-	if (matches.length > 0) {
-		// should only be one match, so select first and index 0 contains the entire match
-		const match = matches[0][0];
+	const italicRegexes = [/(?:[^*]+)(\*([^*]+)(?:\*\*[^*]*\*\*)*([^*]+)\*)(?:[^*]+)/g, /^(?:[^*]*)(\*([^*]+)(?:\*\*[^*]*\*\*)*([^*]+)\*)(?:[^*]*)$/g];
+	let matches = [];
+	if (isItalic) {
+		matches = [...lineText.matchAll(italicRegexes[0])].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length >= cursorChar);
+		if (!matches.length) {
+			matches = [...lineText.matchAll(italicRegexes[1])].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length >= cursorChar);
+		}
+	} else {
+		matches = [...lineText.matchAll(/\`[^\`]*\`/g)].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length >= cursorChar);
+	}
+	if (matches.length) {
+		// should only be one match, so select first and select group 1 for italics because that contains just the italic section
+		// doesn't include the leading and trailing characters which are guaranteed to not be * so as not to be confused with bold
+		const match = isItalic ? matches[0][1] : matches[0][0];
 		const startIndex = lineText.indexOf(match);
 		const cursorOnType = cursorChar === startIndex || cursorChar === startIndex + match.length;
 		const contentAndType = new vscode.SelectionRange(new vscode.Range(cursorLine, startIndex, cursorLine, startIndex + match.length), parent);
@@ -195,7 +208,7 @@ function createLinkRange(lineText: string, cursorChar: number, cursorLine: numbe
 	const regex = /(\[[^\(\)]*\])(\([^\[\]]*\))/g;
 	const matches = [...lineText.matchAll(regex)].filter(match => lineText.indexOf(match[0]) <= cursorChar && lineText.indexOf(match[0]) + match[0].length > cursorChar);
 
-	if (matches.length > 0) {
+	if (matches.length) {
 		// should only be one match, so select first and index 0 contains the entire match, so match = [text](url)
 		const link = matches[0][0];
 		const linkRange = new vscode.SelectionRange(new vscode.Range(cursorLine, lineText.indexOf(link), cursorLine, lineText.indexOf(link) + link.length), parent);

@@ -7,7 +7,7 @@ import * as strings from 'vs/base/common/strings';
 import * as dom from 'vs/base/browser/dom';
 import { StandardKeyboardEvent } from 'vs/base/browser/keyboardEvent';
 import { Emitter, Event } from 'vs/base/common/event';
-import { Keybinding, ResolvedKeybinding, SimpleKeybinding, createKeybinding } from 'vs/base/common/keyCodes';
+import { Keybinding, ResolvedKeybinding, SimpleKeybinding, createKeybinding } from 'vs/base/common/keybindings';
 import { IDisposable, IReference, ImmortalReference, toDisposable, DisposableStore, Disposable } from 'vs/base/common/lifecycle';
 import { OS, isLinux, isMacintosh } from 'vs/base/common/platform';
 import Severity from 'vs/base/common/severity';
@@ -38,8 +38,8 @@ import { USLayoutResolvedKeybinding } from 'vs/platform/keybinding/common/usLayo
 import { ILabelService, ResourceLabelFormatter, IFormatterChangeEvent } from 'vs/platform/label/common/label';
 import { INotification, INotificationHandle, INotificationService, IPromptChoice, IPromptOptions, NoOpNotification, IStatusMessageOptions, NotificationsFilter } from 'vs/platform/notification/common/notification';
 import { IProgressRunner, IEditorProgressService } from 'vs/platform/progress/common/progress';
-import { ITelemetryInfo, ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
-import { IWorkspace, IWorkspaceContextService, IWorkspaceFolder, IWorkspaceFoldersChangeEvent, WorkbenchState, WorkspaceFolder } from 'vs/platform/workspace/common/workspace';
+import { ITelemetryInfo, ITelemetryService, TelemetryLevel } from 'vs/platform/telemetry/common/telemetry';
+import { IWorkspace, IWorkspaceContextService, IWorkspaceFolder, IWorkspaceFoldersChangeEvent, IWorkspaceFoldersWillChangeEvent, WorkbenchState, WorkspaceFolder } from 'vs/platform/workspace/common/workspace';
 import { ISingleFolderWorkspaceIdentifier, IWorkspaceIdentifier } from 'vs/platform/workspaces/common/workspaces';
 import { ILayoutService } from 'vs/platform/layout/browser/layoutService';
 import { SimpleServicesNLS } from 'vs/editor/common/standaloneStrings';
@@ -51,19 +51,19 @@ import { ILogService } from 'vs/platform/log/common/log';
 export class SimpleModel implements IResolvedTextEditorModel {
 
 	private readonly model: ITextModel;
-	private readonly _onDispose: Emitter<void>;
+	private readonly _onWillDispose: Emitter<void>;
 
 	constructor(model: ITextModel) {
 		this.model = model;
-		this._onDispose = new Emitter<void>();
+		this._onWillDispose = new Emitter<void>();
 	}
 
-	public get onDispose(): Event<void> {
-		return this._onDispose.event;
+	public get onWillDispose(): Event<void> {
+		return this._onWillDispose.event;
 	}
 
-	public load(): Promise<SimpleModel> {
-		return Promise.resolve(this);
+	public resolve(): Promise<void> {
+		return Promise.resolve();
 	}
 
 	public get textEditorModel(): ITextModel {
@@ -82,7 +82,7 @@ export class SimpleModel implements IResolvedTextEditorModel {
 	public dispose(): void {
 		this.disposed = true;
 
-		this._onDispose.fire();
+		this._onWillDispose.fire();
 	}
 
 	public isDisposed(): boolean {
@@ -94,7 +94,7 @@ export class SimpleModel implements IResolvedTextEditorModel {
 	}
 
 	public getMode(): string | undefined {
-		return this.model.getModeId();
+		return this.model.getLanguageId();
 	}
 }
 
@@ -176,8 +176,8 @@ export class SimpleEditorProgressService implements IEditorProgressService {
 		return SimpleEditorProgressService.NULL_PROGRESS_RUNNER;
 	}
 
-	showWhile(promise: Promise<any>, delay?: number): Promise<void> {
-		return Promise.resolve(undefined);
+	async showWhile(promise: Promise<any>, delay?: number): Promise<void> {
+		await promise;
 	}
 }
 
@@ -217,6 +217,10 @@ export class SimpleDialogService implements IDialogService {
 }
 
 export class SimpleNotificationService implements INotificationService {
+
+	readonly onDidAddNotification: Event<INotification> = Event.None;
+
+	readonly onDidRemoveNotification: Event<INotification> = Event.None;
 
 	public _serviceBrand: undefined;
 
@@ -310,12 +314,22 @@ export class StandaloneKeybindingService extends AbstractKeybindingService {
 		this._cachedResolver = null;
 		this._dynamicKeybindings = [];
 
+		// for standard keybindings
 		this._register(dom.addDisposableListener(domNode, dom.EventType.KEY_DOWN, (e: KeyboardEvent) => {
-			let keyEvent = new StandardKeyboardEvent(e);
-			let shouldPreventDefault = this._dispatch(keyEvent, keyEvent.target);
+			const keyEvent = new StandardKeyboardEvent(e);
+			const shouldPreventDefault = this._dispatch(keyEvent, keyEvent.target);
 			if (shouldPreventDefault) {
 				keyEvent.preventDefault();
 				keyEvent.stopPropagation();
+			}
+		}));
+
+		// for single modifier chord keybindings (e.g. shift shift)
+		this._register(dom.addDisposableListener(window, dom.EventType.KEY_UP, (e: KeyboardEvent) => {
+			const keyEvent = new StandardKeyboardEvent(e);
+			const shouldPreventDefault = this._singleModifierDispatch(keyEvent, keyEvent.target);
+			if (shouldPreventDefault) {
+				keyEvent.preventDefault();
 			}
 		}));
 	}
@@ -327,7 +341,7 @@ export class StandaloneKeybindingService extends AbstractKeybindingService {
 
 		if (keybinding) {
 			this._dynamicKeybindings.push({
-				keybinding: keybinding,
+				keybinding: keybinding.parts,
 				command: commandId,
 				when: when,
 				weight1: 1000,
@@ -383,7 +397,7 @@ export class StandaloneKeybindingService extends AbstractKeybindingService {
 				// This might be a removal keybinding item in user settings => accept it
 				result[resultLen++] = new ResolvedKeybindingItem(undefined, item.command, item.commandArgs, when, isDefault, null, false);
 			} else {
-				const resolvedKeybindings = this.resolveKeybinding(keybinding);
+				const resolvedKeybindings = USLayoutResolvedKeybinding.resolveUserBinding(keybinding, OS);
 				for (const resolvedKeybinding of resolvedKeybindings) {
 					result[resultLen++] = new ResolvedKeybindingItem(resolvedKeybinding, item.command, item.commandArgs, when, isDefault, null, false);
 				}
@@ -549,8 +563,8 @@ export class SimpleResourcePropertiesService implements ITextResourcePropertiesS
 	}
 
 	getEOL(resource: URI, language?: string): string {
-		const eol = this.configurationService.getValue<string>('files.eol', { overrideIdentifier: language, resource });
-		if (eol && eol !== 'auto') {
+		const eol = this.configurationService.getValue('files.eol', { overrideIdentifier: language, resource });
+		if (eol && typeof eol === 'string' && eol !== 'auto') {
 			return eol;
 		}
 		return (isLinux || isMacintosh) ? '\n' : '\r\n';
@@ -560,7 +574,7 @@ export class SimpleResourcePropertiesService implements ITextResourcePropertiesS
 export class StandaloneTelemetryService implements ITelemetryService {
 	declare readonly _serviceBrand: undefined;
 
-	public isOptedIn = false;
+	public telemetryLevel = TelemetryLevel.NONE;
 	public sendErrorTelemetry = false;
 
 	public setEnabled(value: boolean): void {
@@ -598,6 +612,9 @@ export class SimpleWorkspaceContextService implements IWorkspaceContextService {
 
 	private readonly _onDidChangeWorkspaceName = new Emitter<void>();
 	public readonly onDidChangeWorkspaceName: Event<void> = this._onDidChangeWorkspaceName.event;
+
+	private readonly _onWillChangeWorkspaceFolders = new Emitter<IWorkspaceFoldersWillChangeEvent>();
+	public readonly onWillChangeWorkspaceFolders: Event<IWorkspaceFoldersWillChangeEvent> = this._onWillChangeWorkspaceFolders.event;
 
 	private readonly _onDidChangeWorkspaceFolders = new Emitter<IWorkspaceFoldersChangeEvent>();
 	public readonly onDidChangeWorkspaceFolders: Event<IWorkspaceFoldersChangeEvent> = this._onDidChangeWorkspaceFolders.event;
@@ -638,12 +655,12 @@ export class SimpleWorkspaceContextService implements IWorkspaceContextService {
 		return resource && resource.scheme === SimpleWorkspaceContextService.SCHEME;
 	}
 
-	public isCurrentWorkspace(workspaceIdentifier: ISingleFolderWorkspaceIdentifier | IWorkspaceIdentifier): boolean {
+	public isCurrentWorkspace(workspaceIdOrFolder: IWorkspaceIdentifier | ISingleFolderWorkspaceIdentifier | URI): boolean {
 		return true;
 	}
 }
 
-export function applyConfigurationValues(configurationService: IConfigurationService, source: any, isDiffEditor: boolean): void {
+export function updateConfigurationService(configurationService: IConfigurationService, source: any, isDiffEditor: boolean): void {
 	if (!source) {
 		return;
 	}
@@ -736,7 +753,7 @@ export class SimpleUriLabelService implements ILabelService {
 		return basename(resource);
 	}
 
-	public getWorkspaceLabel(workspace: IWorkspaceIdentifier | URI | IWorkspace, options?: { verbose: boolean; }): string {
+	public getWorkspaceLabel(workspace: IWorkspaceIdentifier | ISingleFolderWorkspaceIdentifier | URI | IWorkspace, options?: { verbose: boolean; }): string {
 		return '';
 	}
 
@@ -751,12 +768,16 @@ export class SimpleUriLabelService implements ILabelService {
 	public getHostLabel(): string {
 		return '';
 	}
+
+	public getHostTooltip(): string | undefined {
+		return undefined;
+	}
 }
 
 export class SimpleLayoutService implements ILayoutService {
 	declare readonly _serviceBrand: undefined;
 
-	public onLayout = Event.None;
+	public onDidLayout = Event.None;
 
 	private _dimension?: dom.IDimension;
 	get dimension(): dom.IDimension {

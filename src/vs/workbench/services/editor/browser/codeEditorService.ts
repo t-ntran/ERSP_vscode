@@ -8,19 +8,22 @@ import { CodeEditorServiceImpl } from 'vs/editor/browser/services/codeEditorServ
 import { ScrollType } from 'vs/editor/common/editorCommon';
 import { IResourceEditorInput } from 'vs/platform/editor/common/editor';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
-import { TextEditorOptions } from 'vs/workbench/common/editor';
+import { IWorkbenchEditorConfiguration } from 'vs/workbench/common/editor';
 import { ACTIVE_GROUP, IEditorService, SIDE_GROUP } from 'vs/workbench/services/editor/common/editorService';
 import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService';
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { isEqual } from 'vs/base/common/resources';
+import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { applyTextEditorOptions } from 'vs/workbench/common/editor/editorOptions';
 
 export class CodeEditorService extends CodeEditorServiceImpl {
 
 	constructor(
 		@IEditorService private readonly editorService: IEditorService,
-		@IThemeService themeService: IThemeService
+		@IThemeService themeService: IThemeService,
+		@IConfigurationService private readonly configurationService: IConfigurationService,
 	) {
-		super(themeService);
+		super(null, themeService);
 	}
 
 	getActiveCodeEditor(): ICodeEditor | null {
@@ -48,18 +51,17 @@ export class CodeEditorService extends CodeEditorServiceImpl {
 		// side as separate editor.
 		const activeTextEditorControl = this.editorService.activeTextEditorControl;
 		if (
-			!sideBySide &&																// we need the current active group to be the taret
+			!sideBySide &&																// we need the current active group to be the target
 			isDiffEditor(activeTextEditorControl) && 									// we only support this for active text diff editors
 			input.options &&															// we need options to apply
 			input.resource &&															// we need a request resource to compare with
-			activeTextEditorControl.getModel() &&										// we need a target model to compare with
 			source === activeTextEditorControl.getModifiedEditor() && 					// we need the source of this request to be the modified side of the diff editor
+			activeTextEditorControl.getModel() &&										// we need a target model to compare with
 			isEqual(input.resource, activeTextEditorControl.getModel()!.modified.uri) 	// we need the input resources to match with modified side
 		) {
 			const targetEditor = activeTextEditorControl.getModifiedEditor();
 
-			const textOptions = TextEditorOptions.create(input.options);
-			textOptions.apply(targetEditor, ScrollType.Smooth);
+			applyTextEditorOptions(input.options, targetEditor, ScrollType.Smooth);
 
 			return targetEditor;
 		}
@@ -71,11 +73,13 @@ export class CodeEditorService extends CodeEditorServiceImpl {
 	private async doOpenCodeEditor(input: IResourceEditorInput, source: ICodeEditor | null, sideBySide?: boolean): Promise<ICodeEditor | null> {
 
 		// Special case: we want to detect the request to open an editor that
-		// is different from the current one to decide wether the current editor
+		// is different from the current one to decide whether the current editor
 		// should be pinned or not. This ensures that the source of a navigation
 		// is not being replaced by the target. An example is "Goto definition"
 		// that otherwise would replace the editor everytime the user navigates.
+		const enablePreviewFromCodeNavigation = this.configurationService.getValue<IWorkbenchEditorConfiguration>().workbench?.editor?.enablePreviewFromCodeNavigation;
 		if (
+			!enablePreviewFromCodeNavigation &&              	// we only need to do this if the configuration requires it
 			source &&											// we need to know the origin of the navigation
 			!input.options?.pinned &&							// we only need to look at preview editors that open
 			!sideBySide &&										// we only need to care if editor opens in same group

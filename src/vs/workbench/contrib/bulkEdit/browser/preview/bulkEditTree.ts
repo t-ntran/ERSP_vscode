@@ -27,6 +27,8 @@ import { URI } from 'vs/base/common/uri';
 import { IUndoRedoService } from 'vs/platform/undoRedo/common/undoRedo';
 import { Iterable } from 'vs/base/common/iterator';
 import { ResourceFileEdit } from 'vs/editor/browser/services/bulkEditService';
+import { ILanguageConfigurationService } from 'vs/editor/common/modes/languageConfigurationRegistry';
+import { IModeService } from 'vs/editor/common/services/modeService';
 
 // --- VIEW MODEL
 
@@ -178,6 +180,8 @@ export class BulkEditDataSource implements IAsyncDataSource<BulkFileOperations, 
 	constructor(
 		@ITextModelService private readonly _textModelService: ITextModelService,
 		@IUndoRedoService private readonly _undoRedoService: IUndoRedoService,
+		@IModeService private readonly _modeService: IModeService,
+		@ILanguageConfigurationService private readonly _languageConfigurationService: ILanguageConfigurationService,
 	) { }
 
 	hasChildren(element: BulkFileOperations | BulkEditElement): boolean {
@@ -214,7 +218,7 @@ export class BulkEditDataSource implements IAsyncDataSource<BulkFileOperations, 
 				textModel = ref.object.textEditorModel;
 				textModelDisposable = ref;
 			} catch {
-				textModel = new TextModel('', TextModel.DEFAULT_CREATION_OPTIONS, null, null, this._undoRedoService);
+				textModel = new TextModel('', TextModel.DEFAULT_CREATION_OPTIONS, null, null, this._undoRedoService, this._modeService, this._languageConfigurationService);
 				textModelDisposable = textModel;
 			}
 
@@ -409,14 +413,14 @@ export class CategoryElementRenderer implements ITreeRenderer<CategoryElement, F
 		} else if (URI.isUri(metadata.iconPath)) {
 			// background-image
 			template.icon.className = 'uri-icon';
-			template.icon.style.setProperty('--background-dark', `url("${metadata.iconPath.toString(true)}")`);
-			template.icon.style.setProperty('--background-light', `url("${metadata.iconPath.toString(true)}")`);
+			template.icon.style.setProperty('--background-dark', dom.asCSSUrl(metadata.iconPath));
+			template.icon.style.setProperty('--background-light', dom.asCSSUrl(metadata.iconPath));
 
 		} else if (metadata.iconPath) {
 			// background-image
 			template.icon.className = 'uri-icon';
-			template.icon.style.setProperty('--background-dark', `url("${metadata.iconPath.dark.toString(true)}")`);
-			template.icon.style.setProperty('--background-light', `url("${metadata.iconPath.light.toString(true)}")`);
+			template.icon.style.setProperty('--background-dark', dom.asCSSUrl(metadata.iconPath.dark));
+			template.icon.style.setProperty('--background-light', dom.asCSSUrl(metadata.iconPath.light));
 		}
 
 		template.label.setLabel(metadata.label, metadata.description, {
@@ -608,14 +612,14 @@ class TextEditElementTemplate {
 			} else if (URI.isUri(iconPath)) {
 				// background-image
 				this._icon.className = 'uri-icon';
-				this._icon.style.setProperty('--background-dark', `url("${iconPath.toString(true)}")`);
-				this._icon.style.setProperty('--background-light', `url("${iconPath.toString(true)}")`);
+				this._icon.style.setProperty('--background-dark', dom.asCSSUrl(iconPath));
+				this._icon.style.setProperty('--background-light', dom.asCSSUrl(iconPath));
 
 			} else {
 				// background-image
 				this._icon.className = 'uri-icon';
-				this._icon.style.setProperty('--background-dark', `url("${iconPath.dark.toString(true)}")`);
-				this._icon.style.setProperty('--background-light', `url("${iconPath.light.toString(true)}")`);
+				this._icon.style.setProperty('--background-dark', dom.asCSSUrl(iconPath.dark));
+				this._icon.style.setProperty('--background-light', dom.asCSSUrl(iconPath.light));
 			}
 		}
 

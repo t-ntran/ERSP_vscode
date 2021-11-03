@@ -5,6 +5,7 @@
 
 import * as strings from 'vs/base/common/strings';
 import { ShiftCommand } from 'vs/editor/common/commands/shiftCommand';
+import { EditorAutoIndentStrategy } from 'vs/editor/common/config/editorOptions';
 import { Range } from 'vs/editor/common/core/range';
 import { Selection } from 'vs/editor/common/core/selection';
 import { ICommand, ICursorStateComputerData, IEditOperationBuilder } from 'vs/editor/common/editorCommon';
@@ -13,7 +14,6 @@ import { CompleteEnterAction, IndentAction } from 'vs/editor/common/modes/langua
 import { IIndentConverter, LanguageConfigurationRegistry } from 'vs/editor/common/modes/languageConfigurationRegistry';
 import { IndentConsts } from 'vs/editor/common/modes/supports/indentRules';
 import * as indentUtils from 'vs/editor/contrib/indentation/indentUtils';
-import { EditorAutoIndentStrategy } from 'vs/editor/common/config/editorOptions';
 
 export class MoveLinesCommand implements ICommand {
 
@@ -60,8 +60,8 @@ export class MoveLinesCommand implements ICommand {
 			getLineTokens: (lineNumber: number) => {
 				return model.getLineTokens(lineNumber);
 			},
-			getLanguageIdentifier: () => {
-				return model.getLanguageIdentifier();
+			getLanguageId: () => {
+				return model.getLanguageId();
 			},
 			getLanguageIdAtPosition: (lineNumber: number, column: number) => {
 				return model.getLanguageIdAtPosition(lineNumber, column);
@@ -299,13 +299,13 @@ export class MoveLinesCommand implements ICommand {
 		}
 	}
 
-	private matchEnterRule(model: ITextModel, indentConverter: IIndentConverter, tabSize: number, line: number, oneLineAbove: number, oneLineAboveText?: string) {
+	private matchEnterRule(model: ITextModel, indentConverter: IIndentConverter, tabSize: number, line: number, oneLineAbove: number, previousLineText?: string) {
 		let validPrecedingLine = oneLineAbove;
 		while (validPrecedingLine >= 1) {
 			// ship empty lines as empty lines just inherit indentation
 			let lineContent;
-			if (validPrecedingLine === oneLineAbove && oneLineAboveText !== undefined) {
-				lineContent = oneLineAboveText;
+			if (validPrecedingLine === oneLineAbove && previousLineText !== undefined) {
+				lineContent = previousLineText;
 			} else {
 				lineContent = model.getLineContent(validPrecedingLine);
 			}

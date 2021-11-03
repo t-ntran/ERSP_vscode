@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 import * as pathUtils from 'path';
 
 const FILE_LINE_REGEX = /^(\S.*):$/;
-const RESULT_LINE_REGEX = /^(\s+)(\d+)(:| )(\s+)(.*)$/;
+const RESULT_LINE_REGEX = /^(\s+)(\d+)(: |  )(\s*)(.*)$/;
 const ELISION_REGEX = /⟪ ([0-9]+) characters skipped ⟫/g;
 const SEARCH_RESULT_SELECTOR = { language: 'search-result', exclusive: true };
 const DIRECTIVES = ['# Query:', '# Flags:', '# Including:', '# Excluding:', '# ContextLines:'];
@@ -128,16 +128,22 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 function relativePathToUri(path: string, resultsUri: vscode.Uri): vscode.Uri | undefined {
+
+	const userDataPrefix = '(Settings) ';
+	if (path.startsWith(userDataPrefix)) {
+		return vscode.Uri.file(path.slice(userDataPrefix.length)).with({ scheme: 'vscode-userdata' });
+	}
+
 	if (pathUtils.isAbsolute(path)) {
-		return vscode.Uri
-			.file(path)
-			.with({ scheme: process.env.HOME ? 'file' : 'vscode-userdata' });
+		if (/^[\\\/]Untitled-\d*$/.test(path)) {
+			return vscode.Uri.file(path.slice(1)).with({ scheme: 'untitled', path: path.slice(1) });
+		}
+		return vscode.Uri.file(path);
 	}
 
 	if (path.indexOf('~/') === 0) {
-		return vscode.Uri
-			.file(pathUtils.join(process.env.HOME ?? '', path.slice(2)))
-			.with({ scheme: process.env.HOME ? 'file' : 'vscode-userdata' });
+		const homePath = process.env.HOME || process.env.HOMEPATH || '';
+		return vscode.Uri.file(pathUtils.join(homePath, path.slice(2)));
 	}
 
 	const uriFromFolderWithPath = (folder: vscode.WorkspaceFolder, path: string): vscode.Uri =>
@@ -214,16 +220,24 @@ function parseSearchResults(document: vscode.TextDocument, token?: vscode.Cancel
 
 		const resultLine = RESULT_LINE_REGEX.exec(line);
 		if (resultLine) {
-			const [, indentation, _lineNumber, seperator, resultIndentation] = resultLine;
+			const [, indentation, _lineNumber, separator] = resultLine;
 			const lineNumber = +_lineNumber - 1;
-			const resultStart = (indentation + _lineNumber + seperator + resultIndentation).length;
-			const metadataOffset = (indentation + _lineNumber + seperator).length;
+			const metadataOffset = (indentation + _lineNumber + separator).length;
 			const targetRange = new vscode.Range(Math.max(lineNumber - 3, 0), 0, lineNumber + 3, line.length);
 
-			let lastEnd = resultStart;
-			let offset = 0;
 			let locations: Required<vscode.LocationLink>[] = [];
-			ELISION_REGEX.lastIndex = resultStart;
+
+			// Allow line number, indentation, etc to take you to definition as well.
+			locations.push({
+				targetRange,
+				targetSelectionRange: new vscode.Range(lineNumber, 0, lineNumber, 1),
+				targetUri: currentTarget,
+				originSelectionRange: new vscode.Range(i, 0, i, metadataOffset - 1),
+			});
+
+			let lastEnd = metadataOffset;
+			let offset = 0;
+			ELISION_REGEX.lastIndex = metadataOffset;
 			for (let match: RegExpExecArray | null; (match = ELISION_REGEX.exec(line));) {
 				locations.push({
 					targetRange,
@@ -246,7 +260,7 @@ function parseSearchResults(document: vscode.TextDocument, token?: vscode.Cancel
 			}
 
 			currentTargetLocations?.push(...locations);
-			links[i] = { type: 'result', locations, isContext: seperator === ' ', prefixRange: new vscode.Range(i, 0, i, metadataOffset) };
+			links[i] = { type: 'result', locations, isContext: separator === ' ', prefixRange: new vscode.Range(i, 0, i, metadataOffset) };
 		}
 	}
 

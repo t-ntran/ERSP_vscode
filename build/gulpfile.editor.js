@@ -16,8 +16,6 @@ const cp = require('child_process');
 const compilation = require('./lib/compilation');
 const monacoapi = require('./lib/monaco-api');
 const fs = require('fs');
-const webpack = require('webpack');
-const webpackGulp = require('webpack-stream');
 
 let root = path.dirname(__dirname);
 let sha1 = util.getVersion(root);
@@ -51,7 +49,7 @@ let BUNDLED_FILE_HEADER = [
 	' * Copyright (c) Microsoft Corporation. All rights reserved.',
 	' * Version: ' + headerVersion,
 	' * Released under the MIT license',
-	' * https://github.com/microsoft/vscode/blob/master/LICENSE.txt',
+	' * https://github.com/microsoft/vscode/blob/main/LICENSE.txt',
 	' *-----------------------------------------------------------*/',
 	''
 ].join('\n');
@@ -222,7 +220,7 @@ const compileEditorESMTask = task.define('compile-editor-esm', () => {
 				}
 			}
 
-			console.log(`Open in VS Code the folder at '${destPath}' and you can alayze the compilation error`);
+			console.log(`Open in VS Code the folder at '${destPath}' and you can analyze the compilation error`);
 			throw new Error('Standalone Editor compilation failed. If this is the build machine, simply launch `yarn run gulp editor-distro` on your machine to further analyze the compilation problem.');
 		});
 	}
@@ -262,7 +260,10 @@ function toExternalDTS(contents) {
 
 		if (line.indexOf('declare let MonacoEnvironment') === 0) {
 			lines[i] = `declare global {\n    let MonacoEnvironment: Environment | undefined;\n}`;
-			// lines[i] = line.replace('declare namespace monaco.', 'export namespace ');
+		}
+
+		if (line.indexOf('\tMonacoEnvironment?') === 0) {
+			lines[i] = `    MonacoEnvironment?: Environment | undefined;`;
 		}
 	}
 	return lines.join('\n').replace(/\n\n\n+/g, '\n\n');
@@ -398,6 +399,9 @@ gulp.task('editor-distro',
 );
 
 const bundleEditorESMTask = task.define('editor-esm-bundle-webpack', () => {
+	const webpack = require('webpack');
+	const webpackGulp = require('webpack-stream');
+
 	const result = es.through();
 
 	const webpackConfigPath = path.join(root, 'build/monaco/monaco.webpack.config.js');

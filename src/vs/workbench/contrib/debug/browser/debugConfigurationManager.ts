@@ -35,7 +35,7 @@ import { IHistoryService } from 'vs/workbench/services/history/common/history';
 import { flatten, distinct } from 'vs/base/common/arrays';
 import { getVisibleAndSorted } from 'vs/workbench/contrib/debug/common/debugUtils';
 import { DebugConfigurationProviderTriggerKind } from 'vs/workbench/api/common/extHostTypes';
-import { IUriIdentityService } from 'vs/workbench/services/uriIdentity/common/uriIdentity';
+import { IUriIdentityService } from 'vs/platform/uriIdentity/common/uriIdentity';
 import { AdapterManager } from 'vs/workbench/contrib/debug/browser/debugAdapterManager';
 import { debugConfigure } from 'vs/workbench/contrib/debug/browser/debugIcons';
 import { ThemeIcon } from 'vs/platform/theme/common/themeService';
@@ -83,10 +83,11 @@ export class ConfigurationManager implements IConfigurationManager {
 		const previousSelectedLaunch = this.launches.find(l => l.uri.toString() === previousSelectedRoot);
 		const previousSelectedName = this.storageService.get(DEBUG_SELECTED_CONFIG_NAME_KEY, StorageScope.WORKSPACE);
 		this.debugConfigurationTypeContext = CONTEXT_DEBUG_CONFIGURATION_TYPE.bindTo(contextKeyService);
+		const dynamicConfig = previousSelectedType ? { type: previousSelectedType } : undefined;
 		if (previousSelectedLaunch && previousSelectedLaunch.getConfigurationNames().length) {
-			this.selectConfiguration(previousSelectedLaunch, previousSelectedName, undefined, { type: previousSelectedType });
+			this.selectConfiguration(previousSelectedLaunch, previousSelectedName, undefined, dynamicConfig);
 		} else if (this.launches.length > 0) {
-			this.selectConfiguration(undefined, previousSelectedName, undefined, { type: previousSelectedType });
+			this.selectConfiguration(undefined, previousSelectedName, undefined, dynamicConfig);
 		}
 	}
 
@@ -131,6 +132,11 @@ export class ConfigurationManager implements IConfigurationManager {
 				result = await provider.resolveDebugConfiguration!(folderUri, result, token);
 			}
 		}));
+
+		// The resolver can change the type, ensure activation happens, #135090
+		if (result?.type && result.type !== config.type) {
+			await this.activateDebuggers('onDebugResolve', result.type);
+		}
 
 		return result;
 	}
@@ -280,10 +286,10 @@ export class ConfigurationManager implements IConfigurationManager {
 			this.selectConfiguration(undefined);
 			this.setCompoundSchemaValues();
 		}));
-		this.toDispose.push(this.configurationService.onDidChangeConfiguration(e => {
+		this.toDispose.push(this.configurationService.onDidChangeConfiguration(async e => {
 			if (e.affectsConfiguration('launch')) {
 				// A change happen in the launch.json. If there is already a launch configuration selected, do not change the selection.
-				this.selectConfiguration(undefined);
+				await this.selectConfiguration(undefined);
 				this.setCompoundSchemaValues();
 			}
 		}));
@@ -370,7 +376,11 @@ export class ConfigurationManager implements IConfigurationManager {
 		}
 
 		const names = launch ? launch.getConfigurationNames() : [];
-		this.getSelectedConfig = () => Promise.resolve(config);
+		this.getSelectedConfig = () => {
+			const selected = this.selectedName ? launch?.getConfiguration(this.selectedName) : undefined;
+			return Promise.resolve(selected || config);
+		};
+
 		let type = config?.type;
 		if (name && names.indexOf(name) >= 0) {
 			this.setSelectedLaunchName(name);
@@ -382,7 +392,7 @@ export class ConfigurationManager implements IConfigurationManager {
 				const providers = (await this.getDynamicProviders()).filter(p => p.type === type);
 				this.getSelectedConfig = async () => {
 					const activatedProviders = await Promise.all(providers.map(p => p.getProvider()));
-					const provider = activatedProviders.find(p => p && p.type === type);
+					const provider = activatedProviders.length > 0 ? activatedProviders[0] : undefined;
 					if (provider && launch && launch.workspace) {
 						const token = new CancellationTokenSource();
 						const dynamicConfigs = await provider.provideDebugConfigurations!(launch.workspace.uri, token.token);
@@ -410,8 +420,15 @@ export class ConfigurationManager implements IConfigurationManager {
 			this.setSelectedLaunchName(nameToSet);
 		}
 
+		if (!config && launch && this.selectedName) {
+			config = launch.getConfiguration(this.selectedName);
+			type = config?.type;
+		}
+
 		this.selectedType = dynamicConfig?.type || config?.type;
-		this.storageService.store(DEBUG_SELECTED_TYPE, this.selectedType, StorageScope.WORKSPACE, StorageTarget.MACHINE);
+		// Only store the selected type if we are having a dynamic configuration. Otherwise restoring this configuration from storage might be misindentified as a dynamic configuration
+		this.storageService.store(DEBUG_SELECTED_TYPE, dynamicConfig ? this.selectedType : undefined, StorageScope.WORKSPACE, StorageTarget.MACHINE);
+
 		if (type) {
 			this.debugConfigurationTypeContext.set(type);
 		} else {
@@ -508,7 +525,7 @@ abstract class AbstractLaunch {
 
 	async getInitialConfigurationContent(folderUri?: uri, type?: string, token?: CancellationToken): Promise<string> {
 		let content = '';
-		const adapter = await this.adapterManager.guessDebugger(type);
+		const adapter = await this.adapterManager.guessDebugger(true, type);
 		if (adapter) {
 			const initialConfigs = await this.configurationManager.provideDebugConfigurations(folderUri, adapter.type, token || CancellationToken.None);
 			content = await adapter.getInitialConfigurationContent(initialConfigs);
@@ -565,10 +582,6 @@ class Launch extends AbstractLaunch implements ILaunch {
 					throw new Error(nls.localize('DebugConfig.failed', "Unable to create 'launch.json' file inside the '.vscode' folder ({0}).", error.message));
 				}
 			}
-		}
-
-		if (content === '') {
-			return { editor: null, created: false };
 		}
 
 		const index = content.indexOf(`"${this.configurationManager.selectedConfiguration.name}"`);
@@ -680,7 +693,7 @@ class UserLaunch extends AbstractLaunch implements ILaunch {
 		return nls.localize('user settings', "user settings");
 	}
 
-	get hidden(): boolean {
+	override get hidden(): boolean {
 		return true;
 	}
 
@@ -689,7 +702,7 @@ class UserLaunch extends AbstractLaunch implements ILaunch {
 	}
 
 	async openConfigFile(preserveFocus: boolean): Promise<{ editor: IEditorPane | null, created: boolean }> {
-		const editor = await this.preferencesService.openGlobalSettings(true, { preserveFocus, revealSetting: { key: 'launch' } });
+		const editor = await this.preferencesService.openUserSettings({ jsonEditor: true, preserveFocus, revealSetting: { key: 'launch' } });
 		return ({
 			editor: withUndefinedAsNull(editor),
 			created: false

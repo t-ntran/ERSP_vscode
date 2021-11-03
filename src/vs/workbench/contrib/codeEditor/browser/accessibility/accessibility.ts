@@ -37,7 +37,7 @@ import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService
 
 const CONTEXT_ACCESSIBILITY_WIDGET_VISIBLE = new RawContextKey<boolean>('accessibilityHelpWidgetVisible', false);
 
-class AccessibilityHelpController extends Disposable implements IEditorContribution {
+export class AccessibilityHelpController extends Disposable implements IEditorContribution {
 
 	public static readonly ID = 'editor.contrib.accessibilityHelpController';
 
@@ -117,7 +117,7 @@ class AccessibilityHelpWidget extends Widget implements IOverlayWidget {
 				return;
 			}
 
-			if (e.equals(KeyMod.CtrlCmd | KeyCode.KEY_E)) {
+			if (e.equals(KeyMod.CtrlCmd | KeyCode.KeyE)) {
 				alert(nls.localize('emergencyConfOn', "Now changing the setting `editor.accessibilitySupport` to 'on'."));
 
 				this._configurationService.updateValue('editor.accessibilitySupport', 'on');
@@ -126,7 +126,7 @@ class AccessibilityHelpWidget extends Widget implements IOverlayWidget {
 				e.stopPropagation();
 			}
 
-			if (e.equals(KeyMod.CtrlCmd | KeyCode.KEY_H)) {
+			if (e.equals(KeyMod.CtrlCmd | KeyCode.KeyH)) {
 				alert(nls.localize('openingDocs', "Now opening the VS Code Accessibility documentation page."));
 
 				this._openerService.open(URI.parse('https://go.microsoft.com/fwlink/?linkid=851010'));
@@ -143,7 +143,7 @@ class AccessibilityHelpWidget extends Widget implements IOverlayWidget {
 		this._editor.addOverlayWidget(this);
 	}
 
-	public dispose(): void {
+	public override dispose(): void {
 		this._editor.removeOverlayWidget(this);
 		super.dispose();
 	}

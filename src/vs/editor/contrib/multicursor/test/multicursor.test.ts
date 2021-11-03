@@ -16,6 +16,31 @@ import { IStorageService } from 'vs/platform/storage/common/storage';
 
 suite('Multicursor', () => {
 
+
+	test('issue #26393: Multiple cursors + Word wrap', () => {
+		withTestCodeEditor([
+			'a'.repeat(20),
+			'a'.repeat(20),
+		], { wordWrap: 'wordWrapColumn', wordWrapColumn: 10 }, (editor, viewModel) => {
+			let addCursorDownAction = new InsertCursorBelow();
+			addCursorDownAction.run(null!, editor, {});
+
+			assert.strictEqual(viewModel.getCursorStates().length, 2);
+
+			assert.strictEqual(viewModel.getCursorStates()[0].viewState.position.lineNumber, 1);
+			assert.strictEqual(viewModel.getCursorStates()[1].viewState.position.lineNumber, 3);
+
+			editor.setPosition({ lineNumber: 4, column: 1 });
+			let addCursorUpAction = new InsertCursorAbove();
+			addCursorUpAction.run(null!, editor, {});
+
+			assert.strictEqual(viewModel.getCursorStates().length, 2);
+
+			assert.strictEqual(viewModel.getCursorStates()[0].viewState.position.lineNumber, 4);
+			assert.strictEqual(viewModel.getCursorStates()[1].viewState.position.lineNumber, 2);
+		});
+	});
+
 	test('issue #2205: Multi-cursor pastes in reverse order', () => {
 		withTestCodeEditor([
 			'abc',
@@ -25,7 +50,7 @@ suite('Multicursor', () => {
 
 			editor.setSelection(new Selection(2, 1, 2, 1));
 			addCursorUpAction.run(null!, editor, {});
-			assert.equal(viewModel.getSelections().length, 2);
+			assert.strictEqual(viewModel.getSelections().length, 2);
 
 			editor.trigger('test', Handler.Paste, {
 				text: '1\n2',
@@ -35,8 +60,8 @@ suite('Multicursor', () => {
 				]
 			});
 
-			assert.equal(editor.getModel()!.getLineContent(1), '1abc');
-			assert.equal(editor.getModel()!.getLineContent(2), '2def');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '1abc');
+			assert.strictEqual(editor.getModel()!.getLineContent(2), '2def');
 		});
 	});
 
@@ -46,7 +71,7 @@ suite('Multicursor', () => {
 		], {}, (editor, viewModel) => {
 			let addCursorDownAction = new InsertCursorBelow();
 			addCursorDownAction.run(null!, editor, {});
-			assert.equal(viewModel.getSelections().length, 1);
+			assert.strictEqual(viewModel.getSelections().length, 1);
 		});
 	});
 
@@ -90,7 +115,7 @@ suite('Multicursor selection', () => {
 			editor.setSelection(new Selection(2, 9, 2, 16));
 
 			selectHighlightsAction.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[2, 9, 2, 16],
 				[1, 9, 1, 16],
 				[3, 9, 3, 16],
@@ -98,7 +123,7 @@ suite('Multicursor selection', () => {
 
 			editor.trigger('test', 'removeSecondaryCursors', null);
 
-			assert.deepEqual(fromRange(editor.getSelection()!), [2, 9, 2, 16]);
+			assert.deepStrictEqual(fromRange(editor.getSelection()!), [2, 9, 2, 16]);
 
 			multiCursorSelectController.dispose();
 			findController.dispose();
@@ -121,13 +146,13 @@ suite('Multicursor selection', () => {
 			findController.getState().change({ searchString: 'some+thing', isRegex: true, isRevealed: true }, false);
 
 			selectHighlightsAction.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[1, 1, 1, 10],
 				[2, 1, 2, 11],
 				[3, 1, 3, 12],
 			]);
 
-			assert.equal(findController.getState().searchString, 'some+thing');
+			assert.strictEqual(findController.getState().searchString, 'some+thing');
 
 			multiCursorSelectController.dispose();
 			findController.dispose();
@@ -154,14 +179,14 @@ suite('Multicursor selection', () => {
 			editor.setSelection(new Selection(2, 1, 3, 4));
 
 			addSelectionToNextFindMatch.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[2, 1, 3, 4],
 				[8, 1, 9, 4]
 			]);
 
 			editor.trigger('test', 'removeSecondaryCursors', null);
 
-			assert.deepEqual(fromRange(editor.getSelection()!), [2, 1, 3, 4]);
+			assert.deepStrictEqual(fromRange(editor.getSelection()!), [2, 1, 3, 4]);
 
 			multiCursorSelectController.dispose();
 			findController.dispose();
@@ -182,7 +207,7 @@ suite('Multicursor selection', () => {
 			editor.setSelection(new Selection(1, 1, 1, 4));
 
 			addSelectionToNextFindMatch.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[1, 1, 1, 4],
 				[1, 4, 1, 7]
 			]);
@@ -190,7 +215,7 @@ suite('Multicursor selection', () => {
 			addSelectionToNextFindMatch.run(null!, editor);
 			addSelectionToNextFindMatch.run(null!, editor);
 			addSelectionToNextFindMatch.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[1, 1, 1, 4],
 				[1, 4, 1, 7],
 				[2, 1, 2, 4],
@@ -199,14 +224,14 @@ suite('Multicursor selection', () => {
 			]);
 
 			editor.trigger('test', Handler.Type, { text: 'z' });
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[1, 2, 1, 2],
 				[1, 3, 1, 3],
 				[2, 2, 2, 2],
 				[3, 2, 3, 2],
 				[3, 3, 3, 3]
 			]);
-			assert.equal(editor.getValue(), [
+			assert.strictEqual(editor.getValue(), [
 				'zz',
 				'z',
 				'zz',
@@ -239,14 +264,14 @@ suite('Multicursor selection', () => {
 			editor.setSelection(new Selection(2, 1, 3, 4));
 
 			addSelectionToNextFindMatch.run(null!, editor);
-			assert.deepEqual(editor.getSelections()!.map(fromRange), [
+			assert.deepStrictEqual(editor.getSelections()!.map(fromRange), [
 				[2, 1, 3, 4],
 				[8, 1, 9, 4]
 			]);
 
 			editor.trigger('test', 'removeSecondaryCursors', null);
 
-			assert.deepEqual(fromRange(editor.getSelection()!), [2, 1, 3, 4]);
+			assert.deepStrictEqual(fromRange(editor.getSelection()!), [2, 1, 3, 4]);
 
 			multiCursorSelectController.dispose();
 			findController.dispose();
@@ -284,25 +309,25 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
@@ -323,20 +348,20 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
@@ -357,20 +382,20 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
@@ -392,14 +417,14 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 4),
 				new Selection(2, 1, 2, 4),
 				new Selection(3, 1, 3, 4),
@@ -421,14 +446,14 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 5, 1, 10),
 				new Selection(2, 5, 2, 10),
 				new Selection(3, 5, 3, 8),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 5, 1, 10),
 				new Selection(2, 5, 2, 10),
 				new Selection(3, 5, 3, 8),
@@ -450,20 +475,20 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 5),
 				new Selection(2, 1, 2, 5),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 5),
 				new Selection(2, 1, 2, 5),
 				new Selection(3, 1, 3, 5),
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 5),
 				new Selection(2, 1, 2, 5),
 				new Selection(3, 1, 3, 5),
@@ -471,7 +496,7 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 5),
 				new Selection(2, 1, 2, 5),
 				new Selection(3, 1, 3, 5),
@@ -480,7 +505,7 @@ suite('Multicursor selection', () => {
 			]);
 
 			action.run(null!, editor);
-			assert.deepEqual(editor.getSelections(), [
+			assert.deepStrictEqual(editor.getSelections(), [
 				new Selection(1, 1, 1, 5),
 				new Selection(2, 1, 2, 5),
 				new Selection(3, 1, 3, 5),
@@ -508,18 +533,18 @@ suite('Multicursor selection', () => {
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(4, 1, 4, 4),
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(4, 1, 4, 4),
 					new Selection(6, 2, 6, 5),
@@ -534,12 +559,12 @@ suite('Multicursor selection', () => {
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(4, 1, 4, 4),
 				]);
@@ -550,7 +575,7 @@ suite('Multicursor selection', () => {
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(2, 1, 2, 4),
 				]);
@@ -565,14 +590,14 @@ suite('Multicursor selection', () => {
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(4, 1, 4, 4),
 					new Selection(6, 2, 6, 5),
 				]);
 
 				action.run(null!, editor);
-				assert.deepEqual(editor.getSelections(), [
+				assert.deepStrictEqual(editor.getSelections(), [
 					new Selection(1, 1, 1, 4),
 					new Selection(4, 1, 4, 4),
 					new Selection(6, 2, 6, 5),

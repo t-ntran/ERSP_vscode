@@ -26,9 +26,9 @@ import { MenuId, registerAction2 } from 'vs/platform/actions/common/actions';
 import { Codicon } from 'vs/base/common/codicons';
 import { registerIcon } from 'vs/platform/theme/common/iconRegistry';
 
-const _ctxHasCallHierarchyProvider = new RawContextKey<boolean>('editorHasCallHierarchyProvider', false);
-const _ctxCallHierarchyVisible = new RawContextKey<boolean>('callHierarchyVisible', false);
-const _ctxCallHierarchyDirection = new RawContextKey<string>('callHierarchyDirection', undefined);
+const _ctxHasCallHierarchyProvider = new RawContextKey<boolean>('editorHasCallHierarchyProvider', false, localize('editorHasCallHierarchyProvider', 'Whether a call hierarchy provider is available'));
+const _ctxCallHierarchyVisible = new RawContextKey<boolean>('callHierarchyVisible', false, localize('callHierarchyVisible', 'Whether call hierarchy peek is currently showing'));
+const _ctxCallHierarchyDirection = new RawContextKey<string>('callHierarchyDirection', undefined, { type: 'string', description: localize('callHierarchyDirection', 'Whether call hierarchy shows incoming or outgoing calls') });
 
 function sanitizedDirection(candidate: string): CallHierarchyDirection {
 	return candidate === CallHierarchyDirection.CallsFrom || candidate === CallHierarchyDirection.CallsTo
@@ -188,7 +188,7 @@ registerAction2(class extends EditorAction2 {
 			keybinding: {
 				when: EditorContextKeys.editorTextFocus,
 				weight: KeybindingWeight.WorkbenchContrib,
-				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KEY_H
+				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KeyH
 			},
 			precondition: ContextKeyExpr.and(
 				_ctxHasCallHierarchyProvider,
@@ -212,7 +212,7 @@ registerAction2(class extends EditorAction2 {
 			precondition: ContextKeyExpr.and(_ctxCallHierarchyVisible, _ctxCallHierarchyDirection.isEqualTo(CallHierarchyDirection.CallsFrom)),
 			keybinding: {
 				weight: KeybindingWeight.WorkbenchContrib,
-				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KEY_H,
+				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KeyH,
 			},
 			menu: {
 				id: CallHierarchyTreePeekWidget.TitleMenu,
@@ -237,7 +237,7 @@ registerAction2(class extends EditorAction2 {
 			precondition: ContextKeyExpr.and(_ctxCallHierarchyVisible, _ctxCallHierarchyDirection.isEqualTo(CallHierarchyDirection.CallsTo)),
 			keybinding: {
 				weight: KeybindingWeight.WorkbenchContrib,
-				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KEY_H,
+				primary: KeyMod.Shift + KeyMod.Alt + KeyCode.KeyH,
 			},
 			menu: {
 				id: CallHierarchyTreePeekWidget.TitleMenu,

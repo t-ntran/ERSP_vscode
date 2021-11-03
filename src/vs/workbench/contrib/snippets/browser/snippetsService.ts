@@ -9,7 +9,6 @@ import * as resources from 'vs/base/common/resources';
 import { isFalsyOrWhitespace } from 'vs/base/common/strings';
 import { URI } from 'vs/base/common/uri';
 import { Position } from 'vs/editor/common/core/position';
-import { LanguageId } from 'vs/editor/common/modes';
 import { IModeService } from 'vs/editor/common/services/modeService';
 import { setSnippetSuggestSupport } from 'vs/editor/contrib/suggest/suggest';
 import { localize } from 'vs/nls';
@@ -29,6 +28,7 @@ import { ResourceMap } from 'vs/base/common/map';
 import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
 import { isStringArray } from 'vs/base/common/types';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { ITextFileService } from 'vs/workbench/services/textfile/common/textfiles';
 
 namespace snippetExt {
 
@@ -180,6 +180,7 @@ class SnippetsService implements ISnippetsService {
 		@IModeService private readonly _modeService: IModeService,
 		@ILogService private readonly _logService: ILogService,
 		@IFileService private readonly _fileService: IFileService,
+		@ITextFileService private readonly _textfileService: ITextFileService,
 		@IExtensionResourceLoaderService private readonly _extensionResourceLoaderService: IExtensionResourceLoaderService,
 		@ILifecycleService lifecycleService: ILifecycleService,
 		@IInstantiationService instantiationService: IInstantiationService,
@@ -220,15 +221,14 @@ class SnippetsService implements ISnippetsService {
 		return this._files.values();
 	}
 
-	async getSnippets(languageId: LanguageId, opts?: ISnippetGetOptions): Promise<Snippet[]> {
+	async getSnippets(languageId: string, opts?: ISnippetGetOptions): Promise<Snippet[]> {
 		await this._joinSnippets();
 
 		const result: Snippet[] = [];
 		const promises: Promise<any>[] = [];
 
-		const languageIdentifier = this._modeService.getLanguageIdentifier(languageId);
-		if (languageIdentifier) {
-			const langName = languageIdentifier.language;
+		const langName = this._modeService.validateLanguageId(languageId);
+		if (langName) {
 			for (const file of this._files.values()) {
 				promises.push(file.load()
 					.then(file => file.select(langName, result))
@@ -240,11 +240,10 @@ class SnippetsService implements ISnippetsService {
 		return this._filterSnippets(result, opts);
 	}
 
-	getSnippetsSync(languageId: LanguageId, opts?: ISnippetGetOptions): Snippet[] {
+	getSnippetsSync(languageId: string, opts?: ISnippetGetOptions): Snippet[] {
 		const result: Snippet[] = [];
-		const languageIdentifier = this._modeService.getLanguageIdentifier(languageId);
-		if (languageIdentifier) {
-			const langName = languageIdentifier.language;
+		const langName = this._modeService.validateLanguageId(languageId);
+		if (langName) {
 			for (const file of this._files.values()) {
 				// kick off loading (which is a noop in case it's already loaded)
 				// and optimistically collect snippets
@@ -371,6 +370,11 @@ class SnippetsService implements ISnippetsService {
 			}
 		};
 
+		bucket.add(this._textfileService.files.onDidSave(e => {
+			if (resources.isEqualOrParent(e.model.resource, folder)) {
+				addFolderSnippets();
+			}
+		}));
 		bucket.add(watch(this._fileService, folder, addFolderSnippets));
 		bucket.add(disposables);
 		return addFolderSnippets();

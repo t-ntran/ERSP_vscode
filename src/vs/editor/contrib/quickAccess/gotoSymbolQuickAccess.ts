@@ -3,21 +3,20 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { localize } from 'vs/nls';
-import { IQuickPick, IQuickPickItem, IQuickPickSeparator } from 'vs/platform/quickinput/common/quickInput';
 import { CancellationToken, CancellationTokenSource } from 'vs/base/common/cancellation';
-import { DisposableStore, IDisposable, Disposable, toDisposable } from 'vs/base/common/lifecycle';
+import { Codicon } from 'vs/base/common/codicons';
+import { IMatch } from 'vs/base/common/filters';
+import { IPreparedQuery, pieceToQuery, prepareQuery, scoreFuzzy2 } from 'vs/base/common/fuzzyScorer';
+import { Disposable, DisposableStore, IDisposable, toDisposable } from 'vs/base/common/lifecycle';
+import { format, trim } from 'vs/base/common/strings';
+import { IRange, Range } from 'vs/editor/common/core/range';
 import { ScrollType } from 'vs/editor/common/editorCommon';
 import { ITextModel } from 'vs/editor/common/model';
-import { IRange, Range } from 'vs/editor/common/core/range';
+import { DocumentSymbol, DocumentSymbolProviderRegistry, SymbolKind, SymbolKinds, SymbolTag } from 'vs/editor/common/modes';
+import { OutlineModel } from 'vs/editor/contrib/documentSymbols/outlineModel';
 import { AbstractEditorNavigationQuickAccessProvider, IEditorNavigationQuickAccessOptions, IQuickAccessTextEditorContext } from 'vs/editor/contrib/quickAccess/editorNavigationQuickAccess';
-import { DocumentSymbol, SymbolKinds, SymbolTag, DocumentSymbolProviderRegistry, SymbolKind } from 'vs/editor/common/modes';
-import { OutlineModel, OutlineElement } from 'vs/editor/contrib/documentSymbols/outlineModel';
-import { trim, format } from 'vs/base/common/strings';
-import { prepareQuery, IPreparedQuery, pieceToQuery, scoreFuzzy2 } from 'vs/base/common/fuzzyScorer';
-import { IMatch } from 'vs/base/common/filters';
-import { Iterable } from 'vs/base/common/iterator';
-import { Codicon } from 'vs/base/common/codicons';
+import { localize } from 'vs/nls';
+import { IQuickPick, IQuickPickItem, IQuickPickSeparator } from 'vs/platform/quickinput/common/quickInput';
 
 export interface IGotoSymbolQuickPickItem extends IQuickPickItem {
 	kind: SymbolKind,
@@ -36,10 +35,13 @@ export abstract class AbstractGotoSymbolQuickAccessProvider extends AbstractEdit
 	static SCOPE_PREFIX = ':';
 	static PREFIX_BY_CATEGORY = `${AbstractGotoSymbolQuickAccessProvider.PREFIX}${AbstractGotoSymbolQuickAccessProvider.SCOPE_PREFIX}`;
 
-	constructor(protected options: IGotoSymbolQuickAccessProviderOptions = Object.create(null)) {
+	protected override readonly options: IGotoSymbolQuickAccessProviderOptions;
+
+	constructor(options: IGotoSymbolQuickAccessProviderOptions = Object.create(null)) {
 		super(options);
 
-		options.canAcceptInBackground = true;
+		this.options = options;
+		this.options.canAcceptInBackground = true;
 	}
 
 	protected provideWithoutTextEditor(picker: IQuickPick<IGotoSymbolQuickPickItem>): IDisposable {
@@ -144,7 +146,7 @@ export abstract class AbstractGotoSymbolQuickAccessProvider extends AbstractEdit
 
 		// Resolve symbols from document once and reuse this
 		// request for all filtering and typing then on
-		const symbolsPromise = this.getDocumentSymbols(model, true, token);
+		const symbolsPromise = this.getDocumentSymbols(model, token);
 
 		// Set initial picks and update on type
 		let picksCts: CancellationTokenSource | undefined = undefined;
@@ -418,49 +420,9 @@ export abstract class AbstractGotoSymbolQuickAccessProvider extends AbstractEdit
 		return result;
 	}
 
-	protected async getDocumentSymbols(document: ITextModel, flatten: boolean, token: CancellationToken): Promise<DocumentSymbol[]> {
+	protected async getDocumentSymbols(document: ITextModel, token: CancellationToken): Promise<DocumentSymbol[]> {
 		const model = await OutlineModel.create(document, token);
-		if (token.isCancellationRequested) {
-			return [];
-		}
-
-		const roots: DocumentSymbol[] = [];
-		for (const child of model.children.values()) {
-			if (child instanceof OutlineElement) {
-				roots.push(child.symbol);
-			} else {
-				roots.push(...Iterable.map(child.children.values(), child => child.symbol));
-			}
-		}
-
-		let flatEntries: DocumentSymbol[] = [];
-		if (flatten) {
-			this.flattenDocumentSymbols(flatEntries, roots, '');
-		} else {
-			flatEntries = roots;
-		}
-
-		return flatEntries.sort((symbolA, symbolB) => Range.compareRangesUsingStarts(symbolA.range, symbolB.range));
-	}
-
-	private flattenDocumentSymbols(bucket: DocumentSymbol[], entries: DocumentSymbol[], overrideContainerLabel: string): void {
-		for (const entry of entries) {
-			bucket.push({
-				kind: entry.kind,
-				tags: entry.tags,
-				name: entry.name,
-				detail: entry.detail,
-				containerName: entry.containerName || overrideContainerLabel,
-				range: entry.range,
-				selectionRange: entry.selectionRange,
-				children: undefined, // we flatten it...
-			});
-
-			// Recurse over children
-			if (entry.children) {
-				this.flattenDocumentSymbols(bucket, entry.children, entry.name);
-			}
-		}
+		return token.isCancellationRequested ? [] : model.asListOfDocumentSymbols();
 	}
 }
 

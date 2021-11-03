@@ -6,13 +6,13 @@
 import { localize } from 'vs/nls';
 import { IExtensionManagementService, IGlobalExtensionEnablementService, ILocalExtension } from 'vs/platform/extensionManagement/common/extensionManagement';
 import { IStorageService, StorageScope, StorageTarget } from 'vs/platform/storage/common/storage';
-import { ExtensionType, IExtension } from 'vs/platform/extensions/common/extensions';
+import { ExtensionType, IExtension, isResolverExtension } from 'vs/platform/extensions/common/extensions';
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { INotificationService, IPromptChoice, Severity } from 'vs/platform/notification/common/notification';
 import { IHostService } from 'vs/workbench/services/host/browser/host';
 import { createDecorator, ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
-import { Action2, registerAction2 } from 'vs/platform/actions/common/actions';
-import { IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
+import { Action2, MenuId, registerAction2 } from 'vs/platform/actions/common/actions';
+import { ContextKeyExpr, IContextKeyService, RawContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { LifecyclePhase } from 'vs/workbench/services/lifecycle/common/lifecycle';
 import { Registry } from 'vs/platform/registry/common/platform';
@@ -21,7 +21,8 @@ import { ICommandService } from 'vs/platform/commands/common/commands';
 import { ILogService } from 'vs/platform/log/common/log';
 import { IProductService } from 'vs/platform/product/common/productService';
 import { IWorkbenchIssueService } from 'vs/workbench/services/issue/common/issue';
-import { timeout } from 'vs/base/common/async';
+import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
+import { areSameExtensions } from 'vs/platform/extensionManagement/common/extensionManagementUtil';
 
 // --- bisect service
 
@@ -74,6 +75,7 @@ class ExtensionBisectService implements IExtensionBisectService {
 	constructor(
 		@ILogService logService: ILogService,
 		@IStorageService private readonly _storageService: IStorageService,
+		@IWorkbenchEnvironmentService private readonly _envService: IWorkbenchEnvironmentService
 	) {
 		const raw = _storageService.get(ExtensionBisectService._storageKey, StorageScope.GLOBAL);
 		this._state = BisectState.fromJSON(raw);
@@ -98,10 +100,23 @@ class ExtensionBisectService implements IExtensionBisectService {
 
 	isDisabledByBisect(extension: IExtension): boolean {
 		if (!this._state) {
+			// bisect isn't active
+			return false;
+		}
+		if (isResolverExtension(extension.manifest, this._envService.remoteAuthority)) {
+			// the current remote resolver extension cannot be disabled
+			return false;
+		}
+		if (this._isEnabledInEnv(extension)) {
+			// Extension enabled in env cannot be disabled
 			return false;
 		}
 		const disabled = this._disabled.get(extension.identifier.id);
 		return disabled ?? false;
+	}
+
+	private _isEnabledInEnv(extension: IExtension): boolean {
+		return Array.isArray(this._envService.enableExtensions) && this._envService.enableExtensions.some(id => areSameExtensions({ id }, extension.identifier));
 	}
 
 	async start(extensions: ILocalExtension[]): Promise<void> {
@@ -198,10 +213,16 @@ registerAction2(class extends Action2 {
 	constructor() {
 		super({
 			id: 'extension.bisect.start',
-			title: localize('title.start', "Start Extension Bisect"),
+			title: { value: localize('title.start', "Start Extension Bisect"), original: 'Start Extension Bisect' },
 			category: localize('help', "Help"),
 			f1: true,
-			precondition: ExtensionBisectUi.ctxIsBisectActive.negate()
+			precondition: ExtensionBisectUi.ctxIsBisectActive.negate(),
+			menu: {
+				id: MenuId.ViewContainerTitle,
+				when: ContextKeyExpr.equals('viewContainer', 'workbench.view.extensions'),
+				group: '2_enablement',
+				order: 3
+			}
 		});
 	}
 
@@ -270,7 +291,7 @@ registerAction2(class extends Action2 {
 
 		if (done.bad) {
 			// DONE but nothing found
-			await dialogService.show(Severity.Info, localize('done.msg', "Extension Bisect"), [], {
+			await dialogService.show(Severity.Info, localize('done.msg', "Extension Bisect"), undefined, {
 				detail: localize('done.detail2', "Extension Bisect is done but no extension has been identified. This might be a problem with {0}.", productService.nameShort)
 			});
 
@@ -278,7 +299,6 @@ registerAction2(class extends Action2 {
 			// DONE and identified extension
 			const res = await dialogService.show(Severity.Info, localize('done.msg', "Extension Bisect"),
 				[localize('report', "Report Issue & Continue"), localize('done', "Continue")],
-				// [],
 				{
 					detail: localize('done.detail', "Extension Bisect is done and has identified {0} as the extension causing the problem.", done.id),
 					checkbox: { label: localize('done.disbale', "Keep this extension disabled"), checked: true },
@@ -289,8 +309,7 @@ registerAction2(class extends Action2 {
 				await extensionEnablementService.disableExtension({ id: done.id }, undefined);
 			}
 			if (res.choice === 0) {
-				issueService.openReporter({ extensionId: done.id });
-				await timeout(750); // workaround for https://github.com/microsoft/vscode/issues/111871
+				await issueService.openReporter({ extensionId: done.id });
 			}
 		}
 		await bisectService.reset();

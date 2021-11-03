@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { ICredentialsService } from 'vs/workbench/services/credentials/common/credentials';
+import { ICredentialsChangeEvent, ICredentialsService } from 'vs/workbench/services/credentials/common/credentials';
 import { INativeHostService } from 'vs/platform/native/electron-sandbox/native';
 import { registerSingleton } from 'vs/platform/instantiation/common/extensions';
 import { Emitter } from 'vs/base/common/event';
@@ -13,7 +13,7 @@ export class KeytarCredentialsService extends Disposable implements ICredentials
 
 	declare readonly _serviceBrand: undefined;
 
-	private _onDidChangePassword: Emitter<void> = this._register(new Emitter());
+	private _onDidChangePassword: Emitter<ICredentialsChangeEvent> = this._register(new Emitter());
 	readonly onDidChangePassword = this._onDidChangePassword.event;
 
 	constructor(@INativeHostService private readonly nativeHostService: INativeHostService) {
@@ -45,6 +45,10 @@ export class KeytarCredentialsService extends Disposable implements ICredentials
 	findCredentials(service: string): Promise<Array<{ account: string, password: string }>> {
 		return this.nativeHostService.findCredentials(service);
 	}
+
+	// This class doesn't implement the clear() function because we don't know
+	// what services have stored credentials. For reference, a "service" is an extension.
+	// TODO: should we clear credentials for the built-in auth extensions?
 }
 
 registerSingleton(ICredentialsService, KeytarCredentialsService, true);

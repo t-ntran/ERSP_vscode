@@ -22,9 +22,11 @@ import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/
 import { IProductService } from 'vs/platform/product/common/productService';
 
 interface IConfiguration extends IWindowsConfiguration {
-	update: { mode: string; };
-	debug: { console: { wordWrap: boolean } };
-	editor: { accessibilitySupport: 'on' | 'off' | 'auto' };
+	update?: { mode?: string; };
+	debug?: { console?: { wordWrap?: boolean } };
+	editor?: { accessibilitySupport?: 'on' | 'off' | 'auto' };
+	security?: { workspace?: { trust?: { enabled?: boolean } } };
+	files?: { legacyWatcher?: string, experimentalSandboxedFileService?: boolean };
 }
 
 export class SettingsChangeRelauncher extends Disposable implements IWorkbenchContribution {
@@ -34,9 +36,10 @@ export class SettingsChangeRelauncher extends Disposable implements IWorkbenchCo
 	private nativeFullScreen: boolean | undefined;
 	private clickThroughInactive: boolean | undefined;
 	private updateMode: string | undefined;
-	private debugConsoleWordWrap: boolean | undefined;
 	private accessibilitySupport: 'on' | 'off' | 'auto' | undefined;
-	private enableExperimentalProxyLoginDialog = true; // default
+	private workspaceTrustEnabled: boolean | undefined;
+	private legacyFileWatcher: string | undefined = undefined;
+	private experimentalSandboxedFileService: boolean | undefined = undefined;
 
 	constructor(
 		@IHostService private readonly hostService: IHostService,
@@ -52,12 +55,6 @@ export class SettingsChangeRelauncher extends Disposable implements IWorkbenchCo
 
 	private onConfigurationChange(config: IConfiguration, notify: boolean): void {
 		let changed = false;
-
-		// Debug console word wrap
-		if (typeof config.debug?.console.wordWrap === 'boolean' && config.debug.console.wordWrap !== this.debugConsoleWordWrap) {
-			this.debugConsoleWordWrap = config.debug.console.wordWrap;
-			changed = true;
-		}
 
 		if (isNative) {
 
@@ -99,9 +96,21 @@ export class SettingsChangeRelauncher extends Disposable implements IWorkbenchCo
 				}
 			}
 
-			// Experimental proxy login dialog
-			if (typeof config.window?.enableExperimentalProxyLoginDialog === 'boolean' && config.window.enableExperimentalProxyLoginDialog !== this.enableExperimentalProxyLoginDialog) {
-				this.enableExperimentalProxyLoginDialog = config.window.enableExperimentalProxyLoginDialog;
+			// Workspace trust
+			if (typeof config?.security?.workspace?.trust?.enabled === 'boolean' && config.security?.workspace.trust.enabled !== this.workspaceTrustEnabled) {
+				this.workspaceTrustEnabled = config.security.workspace.trust.enabled;
+				changed = true;
+			}
+
+			// Legacy File Watcher
+			if (typeof config.files?.legacyWatcher === 'string' && config.files.legacyWatcher !== this.legacyFileWatcher) {
+				this.legacyFileWatcher = config.files.legacyWatcher;
+				changed = true;
+			}
+
+			// Experimental Sandboxed File Service
+			if (typeof config.files?.experimentalSandboxedFileService === 'boolean' && config.files.experimentalSandboxedFileService !== this.experimentalSandboxedFileService) {
+				this.experimentalSandboxedFileService = config.files.experimentalSandboxedFileService;
 				changed = true;
 			}
 		}
