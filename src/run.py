@@ -44,6 +44,7 @@ class LoopInfo:
 	def __str__(self):
 		return f'iter {self.iter}, frame {self.frame} at line {self.lineno} with indent {self.indent}'
 
+
 class Logger(bdb.Bdb):
 	def __init__(self, lines, values = []):
 		bdb.Bdb.__init__(self)
@@ -319,7 +320,17 @@ def compute_writes(lines):
 		writes = write_collector.data
 	return (writes, exception)
 
-def compute_runtime_data(lines, values):
+
+class TestLine:
+	def __init__(self, text):
+		# TODO verify comment syntax and handle errors properly
+		tree = ast.parse(text)
+		self.actual = ast.Expression(tree.body[0].value.left)
+		self.expected = ast.Expression(tree.body[0].value.comparators[0])
+
+
+def compute_runtime_data(lines, values, test_strings):
+	print("hi")
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -329,6 +340,27 @@ def compute_runtime_data(lines, values):
 		l.run(code)
 	except Exception as e:
 		exception = e
+
+	# TODO handle exceptions properly
+	tests = []
+	for test_string in test_strings:
+		try:
+			tests.append(TestLine(test_string))
+		except Exception as e:
+			print(e)
+
+	test_results = []
+	for test in tests:
+		# TODO handle exceptions properly
+		try:
+			actual_value = l.runeval(compile(test.actual, "", "eval"))
+			expected_value = l.runeval(compile(test.expected, "", "eval"))
+			passed = actual_value == expected_value
+			test_results.append((actual_value, expected_value, passed))
+		except Exception as e:
+			print(e)
+	print(test_results)
+
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	remove_frame_data(l.data)
 	return (l.data, exception)
@@ -371,6 +403,9 @@ def remove_frame_data(data):
 				del env["frame"]
 
 def main(file, values_file = None):
+	# TODO extract test comments by reading and tokenizing file
+	test_strings = ['abbreviate("Alan Turing") == "A.T"', 'abbreviate("Augusta Ada King") == "A.A.K"']
+
 	lines = load_code_lines(file)
 	values = []
 
@@ -385,7 +420,7 @@ def main(file, values_file = None):
 	if exception != None:
 		return_code = 1
 	else:
-		(run_time_data, exception) = compute_runtime_data(lines, values)
+		(run_time_data, exception) = compute_runtime_data(lines, values, test_strings)
 		if (exception != None):
 			return_code = 2
 
