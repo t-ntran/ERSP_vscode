@@ -330,7 +330,6 @@ class TestLine:
 
 
 def compute_runtime_data(lines, values, test_strings):
-	print("hi")
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -359,7 +358,6 @@ def compute_runtime_data(lines, values, test_strings):
 			test_results.append((actual_value, expected_value, passed))
 		except Exception as e:
 			print(e)
-	print(test_results)
 
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	remove_frame_data(l.data)
@@ -404,7 +402,7 @@ def remove_frame_data(data):
 
 def main(file, values_file = None):
 	# TODO extract test comments by reading and tokenizing file
-	test_strings = ['abbreviate("Alan Turing") == "A.T"', 'abbreviate("Augusta Ada King") == "A.A.K"']
+	test_strings = get_test_comment_lines(file) # ['abbreviate("Alan Turing") == "A.T"', 'abbreviate("Augusta Ada King") == "A.A.K"']
 
 	lines = load_code_lines(file)
 	values = []

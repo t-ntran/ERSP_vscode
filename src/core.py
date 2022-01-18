@@ -90,7 +90,7 @@ def load_code_lines(file_name):
 	return lines
 
 #Getting test comment lines
-def get_Test_Comment_Lines(file_name):
+def get_test_comment_lines(file_name):
 	with open(file_name) as f:
 		test_comments = []
 		test_comment_op = '##'
@@ -100,8 +100,7 @@ def get_Test_Comment_Lines(file_name):
 			token_string = tok[1]
 			if token_type == tokenize.COMMENT:
 				if token_string[:2] == test_comment_op:
-					test_comments.append(tok[1][2:])
-	print(test_comments)
+					test_comments.append(tok[1][2:].strip())
 	return test_comments
 
 
