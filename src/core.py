@@ -89,6 +89,22 @@ def load_code_lines(file_name):
 	replace_empty_lines_with_noop(lines)
 	return lines
 
+#Getting test comment lines
+def get_Test_Comment_Lines(file_name):
+	with open(file_name) as f:
+		test_comments = []
+		test_comment_op = '##'
+		#go through all tokens and find comments: specifically with '##'
+		for tok in tokenize.generate_tokens(f.readline):
+			token_type = tok[0]
+			token_string = tok[1]
+			if token_type == tokenize.COMMENT:
+				if token_string[:2] == test_comment_op:
+					test_comments.append(tok[1][2:])
+	print(test_comments)
+	return test_comments
+
+
 # Image Processing
 
 def is_ndarray_img(v):
