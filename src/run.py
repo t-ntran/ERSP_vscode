@@ -439,7 +439,6 @@ class TestLine:
 def compute_runtime_data(lines, writes, values, test_comments):
 	global current_test
 	global current_exp
-
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -449,8 +448,7 @@ def compute_runtime_data(lines, writes, values, test_comments):
 		l.run(code)
 	except Exception as e:
 		exception = e
-
-	# Only show runtime data from test cases, not top-level executions
+		# Only show runtime data from test cases, not top-level executions
 	if len(test_comments) > 0:
 		l.data = {}
 
@@ -498,6 +496,7 @@ def compute_runtime_data(lines, writes, values, test_comments):
 				l.time += 1
 
 	#print("original data", repr(l.data))
+
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	#print("adjusted data", repr(l.data))
 	remove_frame_data(l.data)
