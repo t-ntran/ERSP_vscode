@@ -323,6 +323,7 @@ def compute_writes(lines):
 
 class TestLine:
 	def __init__(self, text):
+		self.text = text
 		# TODO verify comment syntax and handle errors properly
 		tree = ast.parse(text)
 		self.actual = ast.Expression(tree.body[0].value.left)
@@ -353,6 +354,7 @@ def compute_runtime_data(lines, values, test_strings):
 		# TODO handle exceptions properly
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
+			print(f"test time: {l.time}, test: {test.text}")
 			expected_value = l.runeval(compile(test.expected, "", "eval"))
 			passed = actual_value == expected_value
 			test_results.append((actual_value, expected_value, passed))
@@ -401,8 +403,7 @@ def remove_frame_data(data):
 				del env["frame"]
 
 def main(file, values_file = None):
-	# TODO extract test comments by reading and tokenizing file
-	test_strings = get_test_comment_lines(file) # ['abbreviate("Alan Turing") == "A.T"', 'abbreviate("Augusta Ada King") == "A.A.K"']
+	test_strings = get_test_comment_lines(file)
 
 	lines = load_code_lines(file)
 	values = []

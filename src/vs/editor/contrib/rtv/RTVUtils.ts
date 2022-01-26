@@ -67,7 +67,10 @@ class LocalRunProcess implements RunProcess {
 		this._promise = new Promise((resolve, reject) => {
 			this._reject = reject;
 
-			this._process.stdout.on('data', (data) => this.stdout += data);
+			this._process.stdout.on('data', (data) => {
+				console.log(data.toString());
+				this.stdout += data;
+			});
 			this._process.stderr.on('data', (data) =>
 			{
 				console.log(data.toString());
@@ -237,6 +240,7 @@ class LocalUtils implements Utils {
 
 	runProgram(program: string, values?: any): RunProcess {
 		const file: string = os.tmpdir() + path.sep + 'tmp.py';
+		console.log(file);
 		fs.writeFileSync(file, program);
 
 		let local_process;
