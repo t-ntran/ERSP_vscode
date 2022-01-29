@@ -394,6 +394,36 @@ def compute_writes(lines):
 		writes = write_collector.data
 	return (writes, exception)
 
+ef parse_test_line(line):
+	try:
+		tree = ast.parse(line)
+	except SyntaxError as e:
+		return e.msg
+	if not isinstance(tree, ast.Module):
+		return "Internal error: expected ast.Module"
+	if len(tree.body) != 1:
+		return "Test line may only contain a single statement"
+	expr = tree.body[0]
+	if not isinstance(expr, ast.Expr):
+		return "Internal error: expected ast.Expr"
+
+	if isinstance(expr.value, ast.Compare):
+		compare = expr.value
+		if len(compare.ops) == 1 and isinstance(compare.ops[0], ast.Eq):
+			if isinstance(compare.left, ast.Call):
+				actual = ast.Expression(compare.left)
+				expected = ast.Expression(compare.comparators[0])
+				return [actual, expected]
+			else:
+				return "Left-hand side of == must be a function call"
+		else:
+			return "Tests may only use a single == comparison"
+	elif isinstance(expr.value, ast.Call):
+		actual = ast.Expression(expr.value)
+		return [actual, None]
+	else:
+		return "Test line must be a function call or == comparison"
+
 class TestLine:
 	def __init__(self, text, lineno):
 		self.text = text
@@ -403,6 +433,7 @@ class TestLine:
 			error_msg = parsed + f" (line {self.lineno}): " + text
 			raise SyntaxError(error_msg)
 		self.actual, self.expected = parsed
+
 
 def compute_runtime_data(lines, writes, values, test_comments):
 	global current_test
