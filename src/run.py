@@ -321,13 +321,45 @@ def compute_writes(lines):
 	return (writes, exception)
 
 
+def parse_test_line(line):
+	try:
+		tree = ast.parse(line)
+	except SyntaxError as e:
+		return e.msg
+	if not isinstance(tree, ast.Module):
+		return "Internal error: expected ast.Module"
+	if len(tree.body) != 1:
+		return "Test line may only contain a single statement"
+	expr = tree.body[0]
+	if not isinstance(expr, ast.Expr):
+		return "Internal error: expected ast.Expr"
+
+	if isinstance(expr.value, ast.Compare):
+		compare = expr.value
+		if len(compare.ops) == 1 and isinstance(compare.ops[0], ast.Eq):
+			if isinstance(compare.left, ast.Call):
+				actual = ast.Expression(compare.left)
+				expected = ast.Expression(compare.comparators[0])
+				return [actual, expected]
+			else:
+				return "Left-hand side of == must be a function call"
+		else:
+			return "Tests may only use a single == comparison"
+	elif isinstance(expr.value, ast.Call):
+		actual = ast.Expression(expr.value)
+		return [actual, None]
+	else:
+		return "Test line must be a function call or == comparison"
+
+
 class TestLine:
 	def __init__(self, text):
 		self.text = text
-		# TODO verify comment syntax and handle errors properly
-		tree = ast.parse(text)
-		self.actual = ast.Expression(tree.body[0].value.left)
-		self.expected = ast.Expression(tree.body[0].value.comparators[0])
+		parsed = parse_test_line(text)
+		if isinstance(parsed, str):
+			error_msg = parsed + ": " + text
+			raise SyntaxError(error_msg)
+		self.actual, self.expected = parsed
 
 
 def compute_runtime_data(lines, values, test_strings):
@@ -355,8 +387,12 @@ def compute_runtime_data(lines, values, test_strings):
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
 			print(f"test time: {l.time}, test: {test.text}")
-			expected_value = l.runeval(compile(test.expected, "", "eval"))
-			passed = actual_value == expected_value
+			if test.expected is None:
+				expected_value = None
+				passed = None
+			else:
+				expected_value = l.runeval(compile(test.expected, "", "eval"))
+				passed = actual_value == expected_value
 			test_results.append((actual_value, expected_value, passed))
 		except Exception as e:
 			print(e)
