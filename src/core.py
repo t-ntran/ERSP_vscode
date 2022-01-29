@@ -100,7 +100,7 @@ def get_test_comment_lines(file_name):
 			token_string = tok[1]
 			if token_type == tokenize.COMMENT:
 				if token_string[:2] == test_comment_op:
-					test_comments.append(tok[1][2:].strip())
+					test_comments.append((tok[1][2:].strip(), tok[3][0]))
 	return test_comments
 
 

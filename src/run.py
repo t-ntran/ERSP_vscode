@@ -353,16 +353,17 @@ def parse_test_line(line):
 
 
 class TestLine:
-	def __init__(self, text):
+	def __init__(self, text, lineno):
 		self.text = text
+		self.lineno = lineno
 		parsed = parse_test_line(text)
 		if isinstance(parsed, str):
-			error_msg = parsed + ": " + text
+			error_msg = parsed + f" (line {self.lineno}): " + text
 			raise SyntaxError(error_msg)
 		self.actual, self.expected = parsed
 
 
-def compute_runtime_data(lines, values, test_strings):
+def compute_runtime_data(lines, values, test_comments):
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -375,9 +376,9 @@ def compute_runtime_data(lines, values, test_strings):
 
 	# TODO handle exceptions properly
 	tests = []
-	for test_string in test_strings:
+	for test_string, test_lineno in test_comments:
 		try:
-			tests.append(TestLine(test_string))
+			tests.append(TestLine(test_string, test_lineno))
 		except Exception as e:
 			print(e)
 
@@ -439,7 +440,7 @@ def remove_frame_data(data):
 				del env["frame"]
 
 def main(file, values_file = None):
-	test_strings = get_test_comment_lines(file)
+	test_comments = get_test_comment_lines(file)
 
 	lines = load_code_lines(file)
 	values = []
@@ -455,7 +456,7 @@ def main(file, values_file = None):
 	if exception != None:
 		return_code = 1
 	else:
-		(run_time_data, exception) = compute_runtime_data(lines, values, test_strings)
+		(run_time_data, exception) = compute_runtime_data(lines, values, test_comments)
 		if (exception != None):
 			return_code = 2
 
