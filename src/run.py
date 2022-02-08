@@ -383,6 +383,7 @@ def compute_runtime_data(lines, values, test_comments):
 			print(e)
 
 	test_results = []
+	exp_values=[]
 	for test in tests:
 		# TODO handle exceptions properly
 		try:
@@ -393,6 +394,13 @@ def compute_runtime_data(lines, values, test_comments):
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
+				l.data[l.time]  = "Expected"
+				print("expected value: " + l.data[l.time])
+				exp_values.append((l.time, expected_value))
+				#print(f"Data: {l.data}")
+				#print(f"local: {l.preexisting_locals}")
+				#print(f"values: {l.values}")
+
 				passed = actual_value == expected_value
 			test_results.append((actual_value, expected_value, passed))
 		except Exception as e:
@@ -400,7 +408,7 @@ def compute_runtime_data(lines, values, test_comments):
 
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	remove_frame_data(l.data)
-	return (l.data, exception)
+	return (l.data, exception, exp_values)
 
 def adjust_to_next_time_step(data, lines):
 	envs_by_time = {}
@@ -450,18 +458,39 @@ def main(file, values_file = None):
 
 	return_code = 0
 	run_time_data = {}
+	exp_values = {}
 
 	(writes, exception) = compute_writes(lines)
 
 	if exception != None:
 		return_code = 1
 	else:
-		(run_time_data, exception) = compute_runtime_data(lines, values, test_comments)
+		(run_time_data, exception, exp_values) = compute_runtime_data(lines, values, test_comments)
 		if (exception != None):
 			return_code = 2
 
+	#run_time_data[5]['letters'] = ['T', 'K']
+	#for x in run_time_data[5]:
+		#for y in run_time_data[5][x]:
+			#print(run_time_data[5][x][y])
+	#print(run_time_data)
+	print(run_time_data[5][2])
+	print(run_time_data[5][0])
+	#print(run_time_data[5][0][0])
+	run_time_data[5][0]['letters'] = "['T','K']"
+	print(run_time_data[6])
+	print(exp_values)
+	#run_time_data[6][0]['exp'] = str(exp_values[0][1])
+	if(run_time_data[6][1]['time'] == exp_value[0])
+	run_time_data[6][1]['exp'] = exp_values[0][1]
+	run_time_data[6][2]['exp'] = exp_values[1][1]
+	print(run_time_data[6])
+	#print(run_time_data[0])
+	#print(run_time_data[0][0])
+	#print(run_time_data[0][0][0])
+
 	with open(file + ".out", "w") as out:
-		out.write(json.dumps((return_code, writes, run_time_data)))
+		out.write(json.dumps((return_code, writes, run_time_data,"expected")))
 
 	if exception != None:
 		raise exception
