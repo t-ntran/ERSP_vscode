@@ -470,25 +470,22 @@ def main(file, values_file = None):
 		if (exception != None):
 			return_code = 2
 
-	#run_time_data[5]['letters'] = ['T', 'K']
-	#for x in run_time_data[5]:
-		#for y in run_time_data[5][x]:
-			#print(run_time_data[5][x][y])
-	#print(run_time_data)
-	print(run_time_data[5][2])
-	print(run_time_data[5][0])
-	#print(run_time_data[5][0][0])
-	run_time_data[5][0]['letters'] = "['T','K']"
-	print(run_time_data[6])
-	print(exp_values)
-	#run_time_data[6][0]['exp'] = str(exp_values[0][1])
-	if(run_time_data[6][1]['time'] == exp_value[0])
-	run_time_data[6][1]['exp'] = exp_values[0][1]
-	run_time_data[6][2]['exp'] = exp_values[1][1]
-	print(run_time_data[6])
-	#print(run_time_data[0])
-	#print(run_time_data[0][0])
-	#print(run_time_data[0][0][0])
+
+
+	#print(run_time_data[6])
+	#print(exp_values)
+	#run_time_data[6][1]['exp'] = exp_values[0][1]
+	#run_time_data[6][2]['exp'] = exp_values[1][1]
+	for line_data in run_time_data:
+		for row_data in run_time_data[line_data]:
+			if "time" in row_data:
+				time = row_data["time"]
+				for exp_time in exp_values:
+					if time == exp_time[0]:
+						row_data["exp"] = exp_time[1]
+
+	#print(run_time_data[6])
+
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data,"expected")))
