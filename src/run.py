@@ -459,7 +459,7 @@ def compute_runtime_data(lines, writes, values, test_comments):
 		except Exception as e:
 			print(e)
 
-	test_results=[]
+	test_results = []
 	for test in tests:
 		expected_value = 'No_expected_value_given_needs_to_be_added_later'
 		test_src = ast.unparse(test.actual)
