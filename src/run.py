@@ -388,15 +388,16 @@ def compute_runtime_data(lines, values, test_comments):
 		# TODO handle exceptions properly
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
-			print(f"test time: {l.time}, test: {test.text}")
+			test_time = l.time - 1
+			print(f"test time: {test_time}, test: {test.text}")
 			if test.expected is None:
 				expected_value = None
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
-				l.data[l.time]  = "Expected"
-				print("expected value: " + l.data[l.time])
-				exp_values.append((l.time, expected_value))
+				l.data[test_time] = "Expected"
+				print("expected value: " + l.data[test_time])
+				exp_values.append((test_time, expected_value))
 				#print(f"Data: {l.data}")
 				#print(f"local: {l.preexisting_locals}")
 				#print(f"values: {l.values}")
