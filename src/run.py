@@ -395,12 +395,7 @@ def compute_runtime_data(lines, values, test_comments):
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
-				l.data[test_time] = "Expected"
-				print("expected value: " + l.data[test_time])
-				exp_values.append((test_time, expected_value))
-				#print(f"Data: {l.data}")
-				#print(f"local: {l.preexisting_locals}")
-				#print(f"values: {l.values}")
+				exp_values.append((test_time, repr(expected_value)))
 
 				passed = actual_value == expected_value
 			test_results.append((actual_value, expected_value, passed))
@@ -470,12 +465,6 @@ def main(file, values_file = None):
 		if (exception != None):
 			return_code = 2
 
-
-
-	#print(run_time_data[6])
-	#print(exp_values)
-	#run_time_data[6][1]['exp'] = exp_values[0][1]
-	#run_time_data[6][2]['exp'] = exp_values[1][1]
 	for line_data in run_time_data:
 		for row_data in run_time_data[line_data]:
 			if "time" in row_data:
@@ -484,11 +473,8 @@ def main(file, values_file = None):
 					if time == exp_time[0]:
 						row_data["exp"] = exp_time[1]
 
-	#print(run_time_data[6])
-
-
 	with open(file + ".out", "w") as out:
-		out.write(json.dumps((return_code, writes, run_time_data,"expected")))
+		out.write(json.dumps((return_code, writes, run_time_data)))
 
 	if exception != None:
 		raise exception
