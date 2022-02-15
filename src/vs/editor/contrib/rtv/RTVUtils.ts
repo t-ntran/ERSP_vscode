@@ -38,10 +38,11 @@ export class TableElement {
 		public loopID: string,
 		public iter: string,
 		public controllingLineNumber: number,
+		public backgroundColor?: string,
 		public vname?: string,
 		public env?: any,
 		public leftBorder?: boolean,
-		public editable?: boolean
+		public editable?: boolean,
 	) {}
 }
 

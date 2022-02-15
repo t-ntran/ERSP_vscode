@@ -128,7 +128,7 @@ class RemoteSynthProcess implements SynthProcess {
 			}
 
 			console.error(err);
-			return new SynthResult(problem.id, false, err.toString());
+			return new SynthResult(problem.id, false, '' + err);
 		}
 	}
 

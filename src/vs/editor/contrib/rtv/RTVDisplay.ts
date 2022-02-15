@@ -415,6 +415,7 @@ class RTVRunButton {
 
 }
 
+// Projection box
 export class RTVDisplayBox implements IRTVDisplayBox {
 	private _box: HTMLDivElement;
 	private _line: RTVLine;
@@ -519,9 +520,11 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		this._line.destroy();
 	}
 
+	/**
+	 * Set content to false. Boxes with no content don't get processed during layout pass,
+	 * so we take care of layout here, which is to make  invisible (opacity 0).
+	 */
 	public setContentFalse() {
-		// Set content to false. Boxes with no content don't get processed during layout pass,
-		// so we take care of layout here, which is to make  invisible (opacity 0).
 		this._allEnvs = [];
 		this._hasContent = false;
 		this._box.textContent = '';
@@ -529,9 +532,10 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		this._line.setOpacity(0);
 	}
 
+	/**
+	 * Set content to true. All other layout properties will be set during layout pass
+	 */
 	public setContentTrue() {
-		// Set content to true. All other layout properties will be set during
-		// layout pass
 		this._hasContent = true;
 	}
 
@@ -832,6 +836,10 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			cellContent.contentEditable = 'true';
 		}
 
+		if (elmt.backgroundColor !== undefined) {
+			cellContent.style.backgroundColor = elmt.backgroundColor;
+		}
+
 		// Add the new content
 		cell.appendChild(cellContent);
 	}
@@ -947,6 +955,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			count = this._controller.changedLinesWhenOutOfDate.size;
 		}
 
+		// Why is this 4?
 		if (count > 4) {
 			this.setContentFalse();
 			return true;
@@ -987,6 +996,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 
+		// What does countent mean?
 		let count_countent_envs = 0;
 		envs.forEach((env: any) => {
 			if (env.end_loop === undefined && env.begin_loop === undefined) {
@@ -1060,7 +1070,26 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					key !== 'lineno' &&
 					key !== 'time' &&
 					key !== '$' &&
-					key !== '#') {
+					key !== '#' &&
+					key !== 'rv' &&
+					key !== 'exp') {
+					this._allVars.add(key);
+				}
+			}
+		}
+
+		// Only show return value and expected value on return lines
+		for (const env of envs) {
+			if ('rv' in env) {
+				this._allVars.clear();
+				break;
+			}
+		}
+
+		// Show return value and expected value last
+		for (const key of ['rv', 'exp']) {
+			for (const env of envs) {
+				if (key in env) {
 					this._allVars.add(key);
 				}
 			}
@@ -1122,10 +1151,10 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			} else {
 				name = '**' + v + '**'
 			}
-			header.push(new TableElement(name, 'header', 'header', 0, ''));
+			header.push(new TableElement(name, 'header', 'header', 0, undefined, ''));
 		});
 		outVarNames.forEach((ov: string, i: number) => {
-			header.push(new TableElement('```html\n<strong>' + ov + '</strong><sub>out</sub>```', 'header', 'header', 0, '', undefined, i === 0));
+			header.push(new TableElement('```html\n<strong>' + ov + '</strong><sub>out</sub>```', 'header', 'header', 0, undefined, '', undefined, i === 0));
 		});
 
 		rows.push(header);
@@ -1136,6 +1165,18 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			let loopID = env['$'];
 			let iter = env['#'];
 			let row: TableElement[] = [];
+			let testPassed: boolean | undefined;
+			if ('rv' in env && 'exp' in env) {
+				testPassed = env['rv'] === env['exp'];
+			}
+
+			let cellBackground: string | undefined = undefined;
+			if (testPassed === true) {
+				cellBackground = 'green';
+			} else if (testPassed === false) {
+				cellBackground = 'red';
+			}
+
 			vars.forEach((v: string) => {
 				let v_str: string;
 				let varName = v;
@@ -1148,7 +1189,9 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					}
 				}
 
-				if (varEnv[v] === undefined) {
+				if (v === 'exp' && testPassed === true) {
+					v_str = '✅';
+				} else if (varEnv[v] === undefined) {
 					v_str = '';
 				} else if (isHtmlEscape(varEnv[v])) {
 					v_str = varEnv[v];
@@ -1156,7 +1199,8 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					v_str = '```python\n' + varEnv[v] + '\n```';
 				}
 
-				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, varName, varEnv));
+				// TODO: only use cellBackground when v === 'test', otherwise use undefined
+				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, cellBackground, varName, varEnv));
 			});
 			outVarNames.forEach((v: string, i: number) => {
 				let v_str: string;
@@ -1167,7 +1211,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 				} else {
 					v_str = '```python\n' + env[v] + '\n```';
 				}
-				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, v, env, i === 0));
+				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, undefined, v, env, i === 0));
 			});
 			rows.push(row);
 		}
@@ -2694,6 +2738,7 @@ export class RTVController implements IRTVController {
 		return [outputMsg, errorMsg, JSON.parse(result!)];
 	}
 
+	// What is outputVars and why is it never used?
 	public async updateBoxes(e?: IModelContentChangedEvent, outputVars?: string[], prevEnvs?: Map<number, any>): Promise<any> {
 
 		if (!this.enabled) {
