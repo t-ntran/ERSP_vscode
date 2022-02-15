@@ -93,7 +93,9 @@ def load_code_lines(file_name):
 def get_test_comment_lines(file_name):
 	with open(file_name) as f:
 		test_comments = []
+		test_comments_filtered = []
 		test_comment_op = '##'
+		test_comment_op_filtered = '###'
 		#go through all tokens and find comments: specifically with '##'
 		for tok in tokenize.generate_tokens(f.readline):
 			token_type = tok[0]
@@ -101,7 +103,13 @@ def get_test_comment_lines(file_name):
 			if token_type == tokenize.COMMENT:
 				if token_string[:2] == test_comment_op:
 					test_comments.append((tok[1][2:].strip(), tok[3][0]))
-	return test_comments
+				if token_string[:3] == test_comment_op_filtered:
+					test_comments_filtered.append((tok[1][3:].strip(), tok[3][0]))
+
+	if test_comments_filtered == []:
+		return test_comments
+	else:
+		return test_comments_filtered
 
 
 # Image Processing
