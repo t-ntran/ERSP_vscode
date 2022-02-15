@@ -164,10 +164,10 @@ export class RTVSynthModel {
 			} else {
 				name = '**' + v + '**'
 			}
-			header.push(new TableElement(name, 'header', 'header', 0, ''));
+			header.push(new TableElement(name, 'header', 'header', 0, undefined, ''));
 		});
 		outVarNames.forEach((ov: string, i: number) => {
-			header.push(new TableElement('```html\n<strong>' + ov + '</strong><sub>out</sub>```', 'header', 'header', 0, '', undefined, i === 0));
+			header.push(new TableElement('```html\n<strong>' + ov + '</strong><sub>out</sub>```', 'header', 'header', 0, undefined, '', undefined, i === 0));
 		});
 
 		rows.push(header);
@@ -192,12 +192,12 @@ export class RTVSynthModel {
 				let s = varEnv[v] ? varEnv[v] as unknown as string : '';
 				let v_str: string = (!s || isHtmlEscape(s)) ? s : '```python\n' + s + '\n```';
 
-				row.push(new TableElement(v_str, loopID, iter, this._lineNumber!, varName, varEnv));
+				row.push(new TableElement(v_str, loopID, iter, this._lineNumber!, undefined, varName, varEnv));
 			});
 			outVarNames.forEach((v: string, i: number) => {
 				let s = env[v] ? env[v] as unknown as string : '';
 				let v_str: string = (!s || isHtmlEscape(s)) ? s : '```python\n' + s + '\n```';
-				row.push(new TableElement(v_str, loopID, iter, this._lineNumber!, v, env, i === 0));
+				row.push(new TableElement(v_str, loopID, iter, this._lineNumber!, undefined, v, env, i === 0));
 			});
 			rows.push(row);
 		}
