@@ -395,7 +395,9 @@ def compute_runtime_data(lines, values, test_comments):
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
-				exp_values.append((test_time, repr(expected_value)))
+				exp_values.append((test_time, repr(expected_value), test_string))
+
+				print(exp_values)
 
 				passed = actual_value == expected_value
 			test_results.append((actual_value, expected_value, passed))
@@ -472,6 +474,9 @@ def main(file, values_file = None):
 				for exp_time in exp_values:
 					if time == exp_time[0]:
 						row_data["exp"] = exp_time[1]
+						row_data["test"] = exp_time[2]
+
+
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data)))
@@ -484,3 +489,9 @@ if __name__ == '__main__':
 		main(sys.argv[1], sys.argv[2])
 	else:
 		main(sys.argv[1])
+
+
+
+
+
+
