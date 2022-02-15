@@ -1071,6 +1071,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					key !== 'time' &&
 					key !== '$' &&
 					key !== '#' &&
+					key !== 'test' &&
 					key !== 'rv' &&
 					key !== 'exp') {
 					this._allVars.add(key);
@@ -1087,7 +1088,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 		// Show return value and expected value last
-		for (const key of ['rv', 'exp']) {
+		for (const key of ['test', 'rv', 'exp']) {
 			for (const env of envs) {
 				if (key in env) {
 					this._allVars.add(key);
@@ -1199,8 +1200,8 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					v_str = '```python\n' + varEnv[v] + '\n```';
 				}
 
-				// TODO: only use cellBackground when v === 'test', otherwise use undefined
-				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, cellBackground, varName, varEnv));
+				const background = v === 'test' ? cellBackground : undefined;
+				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, background, varName, varEnv));
 			});
 			outVarNames.forEach((v: string, i: number) => {
 				let v_str: string;

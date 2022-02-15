@@ -395,7 +395,7 @@ def compute_runtime_data(lines, values, test_comments):
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
-				exp_values.append((test_time, repr(expected_value), test_string))
+				exp_values.append((test_time, repr(expected_value), ast.unparse(test.actual)))
 
 				print(exp_values)
 
