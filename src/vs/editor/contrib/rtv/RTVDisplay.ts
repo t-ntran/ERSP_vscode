@@ -1167,9 +1167,23 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			let iter = env['#'];
 			let row: TableElement[] = [];
 			let testPassed: boolean | undefined;
-			if ('rv' in env && 'exp' in env) {
+			let testEmpty: boolean;
+			let noExp = 'No_expected_value_given_needs_to_be_added_later';
+			if('rv' in env && 'exp' in env) {
+				if (env['exp'] === noExp) {
+					testEmpty = true;
+				}
+				else {
+					testEmpty = false;
+					testPassed = env['rv'] === env['exp'];
+				}
+			}
+			/*
+			else if ('rv' in env && 'exp' in env) {
 				testPassed = env['rv'] === env['exp'];
 			}
+			*/
+
 
 			let cellBackground: string | undefined = undefined;
 			if (testPassed === true) {
@@ -1190,7 +1204,9 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					}
 				}
 
-				if (v === 'exp' && testPassed === true) {
+				if (v === 'exp' && testEmpty === true) {
+					v_str = '?';
+				}else if (v === 'exp' && testPassed === true) {
 					v_str = '✅';
 				} else if (varEnv[v] === undefined) {
 					v_str = '';

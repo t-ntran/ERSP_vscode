@@ -391,7 +391,8 @@ def compute_runtime_data(lines, values, test_comments):
 			test_time = l.time - 1
 			print(f"test time: {test_time}, test: {test.text}")
 			if test.expected is None:
-				expected_value = None
+				expected_value = 'No_expected_value_given_needs_to_be_added_later'
+				exp_values.append((test_time, expected_value, ast.unparse(test.actual)))
 				passed = None
 			else:
 				expected_value = l.runeval(compile(test.expected, "", "eval"))
