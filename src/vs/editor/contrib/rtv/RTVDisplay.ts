@@ -837,7 +837,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 		if (elmt.backgroundColor !== undefined) {
-			cellContent.style.backgroundColor = elmt.backgroundColor;
+			cell.style.backgroundColor = elmt.backgroundColor;
 		}
 
 		// Add the new content
@@ -1187,9 +1187,9 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 			let cellBackground: string | undefined = undefined;
 			if (testPassed === true) {
-				cellBackground = 'green';
+				cellBackground = '#004000';
 			} else if (testPassed === false) {
-				cellBackground = 'red';
+				cellBackground = '#800000';
 			}
 
 			vars.forEach((v: string) => {
