@@ -1169,12 +1169,12 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			let testPassed: boolean | undefined;
 			let testEmpty: boolean;
 			let noExp = 'No_expected_value_given_needs_to_be_added_later';
+			testEmpty = false;
 			if('rv' in env && 'exp' in env) {
 				if (env['exp'] === noExp) {
 					testEmpty = true;
 				}
 				else {
-					testEmpty = false;
 					testPassed = env['rv'] === env['exp'];
 				}
 			}
@@ -1186,7 +1186,10 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 
 			let cellBackground: string | undefined = undefined;
-			if (testPassed === true) {
+			if (testEmpty === true) {
+				cellBackground = '#705d00';  //846d00
+			}
+			else if (testPassed === true) {
 				cellBackground = '#004000';
 			} else if (testPassed === false) {
 				cellBackground = '#800000';
