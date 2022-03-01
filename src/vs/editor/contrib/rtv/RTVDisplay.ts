@@ -1048,7 +1048,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 		let envs = this._allEnvs;
-		// console.log({ envs });
+		console.log({ envs });
 
 		// Compute set of vars in all envs
 		this._allVars = new Set<string>();

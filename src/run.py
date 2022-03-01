@@ -556,7 +556,9 @@ def compute_runtime_data(lines, writes, values, test_comments):
 				})
 				l.time += 1
 
+	#print("original data", repr(l.data))
 	l.data = adjust_to_next_time_step(l.data, l.lines)
+	#print("adjusted data", repr(l.data))
 	remove_frame_data(l.data)
 	return (l.data, exception, test_results)
 
