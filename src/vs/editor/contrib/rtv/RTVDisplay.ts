@@ -1021,7 +1021,6 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 
 	public updateContent(allEnvs?: any[], updateInPlace?: boolean, outputVars?: string[], prevEnvs?: Map<number, any>) {
-
 		// if computeEnvs returns false, there is no content to display
 		let done =this.computeEnvs(allEnvs);
 		if (done) {
@@ -1036,6 +1035,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 		let envs = this._allEnvs;
+		console.log({ envs });
 
 		// Compute set of vars in all envs
 		this._allVars = new Set<string>();
@@ -1067,6 +1067,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			for (let key in env) {
 				if (key !== 'prev_lineno' &&
 					key !== 'next_lineno' &&
+					key !== 'func_lineno' &&
 					key !== 'lineno' &&
 					key !== 'time' &&
 					key !== '$' &&
@@ -1081,14 +1082,14 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 		// Only show return value and expected value on return lines
 		for (const env of envs) {
-			if ('rv' in env) {
+			if ('rv' in env || 'test' in env) {
 				this._allVars.clear();
 				break;
 			}
 		}
 
 		// Show return value and expected value last
-		for (const key of ['test', 'rv', 'exp']) {
+		for (const key of ['test', 'rv', 'Exception Thrown', 'exp']) {
 			for (const env of envs) {
 				if (key in env) {
 					this._allVars.add(key);
@@ -1167,10 +1168,9 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 			let iter = env['#'];
 			let row: TableElement[] = [];
 			let testPassed: boolean | undefined;
-			let testEmpty: boolean;
+			let testEmpty = false;
 			let noExp = 'No_expected_value_given_needs_to_be_added_later';
-			testEmpty = false;
-			if('rv' in env && 'exp' in env) {
+			if('exp' in env) {
 				if (env['exp'] === noExp) {
 					testEmpty = true;
 				}

@@ -60,7 +60,7 @@ class Logger(bdb.Bdb):
 		self.values = values
 
 	def data_at(self, l):
-		if not(l in self.data):
+		if l not in self.data:
 			self.data[l] = []
 		return self.data[l]
 
@@ -206,6 +206,7 @@ class Logger(bdb.Bdb):
 				if (r != None):
 					env[k] = self.compute_repr(frame.f_locals[k])
 		env["lineno"] = lineno
+		env["func_lineno"] = str(frame.f_code.co_firstlineno)
 
 		self.data_at(lineno).append(env)
 
@@ -239,8 +240,7 @@ class Logger(bdb.Bdb):
 			r = self.compute_repr(rv)
 			rv_name = "rv"
 		else:
-			html = add_red_format(self.exception.__class__ .__name__ + ": " + str(self.exception))
-			r = add_html_escape(html)
+			r = format_exception(self.exception)
 			rv_name = "Exception Thrown"
 		if r != None and (frame.f_code.co_name != "<module>" or self.exception != None):
 			self.data_at("R" + str(adjusted_lineno))[-1][rv_name] = r
@@ -251,6 +251,11 @@ class Logger(bdb.Bdb):
 			print("** Line " + str(k))
 			for env in self.data[k]:
 				print(env)
+
+
+def format_exception(exception):
+	html = add_red_format(exception.__class__.__name__ + ": " + str(exception))
+	return add_html_escape(html)
 
 
 class WriteCollector(ast.NodeVisitor):
@@ -374,6 +379,9 @@ def compute_runtime_data(lines, values, test_comments):
 	except Exception as e:
 		exception = e
 
+	# Only show runtime data from test cases, not top-level executions
+	l.data = {}
+
 	# TODO handle exceptions properly
 	tests = []
 	for test_string, test_lineno in test_comments:
@@ -382,30 +390,45 @@ def compute_runtime_data(lines, values, test_comments):
 		except Exception as e:
 			print(e)
 
-	test_results = []
 	exp_values=[]
 	for test in tests:
-		# TODO handle exceptions properly
+		expected_value = 'No_expected_value_given_needs_to_be_added_later'
+		test_src = ast.unparse(test.actual)
+		if test.expected is not None:
+			try:
+				expected_value = repr(l.runeval(compile(test.expected, "", "eval")))
+			except Exception as e:
+				pass
+
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
 			test_time = l.time - 1
 			print(f"test time: {test_time}, test: {test.text}")
-			if test.expected is None:
-				expected_value = 'No_expected_value_given_needs_to_be_added_later'
-				exp_values.append((test_time, expected_value, ast.unparse(test.actual)))
-				passed = None
-			else:
-				expected_value = l.runeval(compile(test.expected, "", "eval"))
-				exp_values.append((test_time, repr(expected_value), ast.unparse(test.actual)))
-
-				print(exp_values)
-
-				passed = actual_value == expected_value
-			test_results.append((actual_value, expected_value, passed))
+			exp_values.append((test_time, expected_value, test_src))
 		except Exception as e:
-			print(e)
+			test_time = l.time - 1
+			func_lineno = None
+			for env in get_envs_by_time(l.data, test_time):
+				func_lineno = int(env["func_lineno"])
+			#print(f"{test_time=}, {func_lineno=}")
+			if func_lineno is not None:
+				l.data_at(func_lineno - 1).append({
+					"time": test_time + 1,
+					"#": "",
+					"$": "",
+					#"prev_lineno": func_lineno,
+					#"next_lineno": func_lineno,
+					"show_exception_at_top": None,
+					"test": test_src,
+					"exp": expected_value,
+					"Exception Thrown": format_exception(e),
+				})
+				l.time += 1
+			#print(repr(l.data))
 
+	#print("original data", repr(l.data))
 	l.data = adjust_to_next_time_step(l.data, l.lines)
+	#print("adjusted data", repr(l.data))
 	remove_frame_data(l.data)
 	return (l.data, exception, exp_values)
 
@@ -422,6 +445,9 @@ def adjust_to_next_time_step(data, lines):
 			if "begin_loop" in env:
 				next_envs.append(env)
 			elif "end_loop" in env:
+				next_envs.append(env)
+			elif "show_exception_at_top" in env:
+				del env["show_exception_at_top"]
 				next_envs.append(env)
 			elif "time" in env:
 				next_time = env["time"]+1
@@ -468,16 +494,14 @@ def main(file, values_file = None):
 		if (exception != None):
 			return_code = 2
 
-	for line_data in run_time_data:
-		for row_data in run_time_data[line_data]:
-			if "time" in row_data:
-				time = row_data["time"]
-				for exp_time in exp_values:
-					if time == exp_time[0]:
-						row_data["exp"] = exp_time[1]
-						row_data["test"] = exp_time[2]
+	#print("here", repr(run_time_data))
 
+	for test_result in exp_values:
+		for env in get_envs_by_time(run_time_data, test_result[0]):
+			env["exp"] = test_result[1]
+			env["test"] = test_result[2]
 
+	#print("THERE", repr(run_time_data))
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data)))
@@ -485,14 +509,18 @@ def main(file, values_file = None):
 	if exception != None:
 		raise exception
 
+
+def get_envs_by_time(data, time):
+	matches = []
+	for envs in data.values():
+		for env in envs:
+			if "time" in env and env["time"] == time:
+				matches.append(env)
+	return matches
+
+
 if __name__ == '__main__':
 	if len(sys.argv) > 2:
 		main(sys.argv[1], sys.argv[2])
 	else:
 		main(sys.argv[1])
-
-
-
-
-
-
