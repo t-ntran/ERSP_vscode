@@ -247,8 +247,6 @@ class Logger(bdb.Bdb):
 					env[k] = r
 		env["lineno"] = lineno
 
-		env["func_lineno"] = str(frame.f_code.co_firstlineno)
-
 		if self.matplotlib_state_change:
 			env["Plot"] = add_html_escape(matplotlib_fig_as_html())
 			self.matplotlib_state_change = False
@@ -318,7 +316,6 @@ class Logger(bdb.Bdb):
 			print("** Line " + str(k))
 			for env in self.data[k]:
 				print(env)
-
 
 def format_exception(exception):
 	# Show full exception traceback (useful for debugging)
@@ -447,7 +444,8 @@ def compute_runtime_data(lines, writes, values, test_comments):
 		l.run(code)
 	except Exception as e:
 		exception = e
-		# Only show runtime data from test cases, not top-level executions
+
+	# Only show runtime data from test cases, not top-level executions
 	if len(test_comments) > 0:
 		l.data = {}
 
@@ -471,7 +469,6 @@ def compute_runtime_data(lines, writes, values, test_comments):
 
 		current_test = test_src
 		current_exp = expected_value
-
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
 			test_time = l.time - 2
@@ -493,8 +490,8 @@ def compute_runtime_data(lines, writes, values, test_comments):
 					"Exception Thrown": format_exception(e),
 				})
 				l.time += 1
-	#print("original data", repr(l.data))
 
+	#print("original data", repr(l.data))
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	#print("adjusted data", repr(l.data))
 	remove_frame_data(l.data)
@@ -566,6 +563,8 @@ def main(file, values_file = None):
 		for env in get_envs_by_time(run_time_data, test_result[0]):
 			env["exp"] = test_result[1]
 			env["test"] = test_result[2]
+
+
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data)))
