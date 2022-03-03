@@ -14,7 +14,7 @@ def add_html_escape(html):
 	return f"```html\n{html}\n```"
 
 def add_red_format(html):
-	return f"<div style='color:red;'>{html}</div>"
+	return f"<div style='color:red;'><small><small>{html}</small></small></div>"
 
 def is_loop_str(str):
 	return re.search("(for|while).*:\w*\n", str) != None
@@ -380,7 +380,8 @@ def compute_runtime_data(lines, values, test_comments):
 		exception = e
 
 	# Only show runtime data from test cases, not top-level executions
-	l.data = {}
+	if len(test_comments) > 0:
+		l.data = {}
 
 	# TODO handle exceptions properly
 	tests = []
@@ -410,25 +411,19 @@ def compute_runtime_data(lines, values, test_comments):
 			func_lineno = None
 			for env in get_envs_by_time(l.data, test_time):
 				func_lineno = int(env["func_lineno"])
-			#print(f"{test_time=}, {func_lineno=}")
 			if func_lineno is not None:
 				l.data_at(func_lineno - 1).append({
 					"time": test_time + 1,
 					"#": "",
 					"$": "",
-					#"prev_lineno": func_lineno,
-					#"next_lineno": func_lineno,
 					"show_exception_at_top": None,
 					"test": test_src,
 					"exp": expected_value,
 					"Exception Thrown": format_exception(e),
 				})
 				l.time += 1
-			#print(repr(l.data))
 
-	#print("original data", repr(l.data))
 	l.data = adjust_to_next_time_step(l.data, l.lines)
-	#print("adjusted data", repr(l.data))
 	remove_frame_data(l.data)
 	return (l.data, exception, exp_values)
 
@@ -494,14 +489,10 @@ def main(file, values_file = None):
 		if (exception != None):
 			return_code = 2
 
-	#print("here", repr(run_time_data))
-
 	for test_result in exp_values:
 		for env in get_envs_by_time(run_time_data, test_result[0]):
 			env["exp"] = test_result[1]
 			env["test"] = test_result[2]
-
-	#print("THERE", repr(run_time_data))
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data)))
