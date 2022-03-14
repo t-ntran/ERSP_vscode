@@ -2034,7 +2034,8 @@ export class RTVController implements IRTVController {
 		let lineCount = model.getLineCount();
 		for (let line = 1; line <= lineCount; line++) {
 			let s = model.getLineContent(line);
-			if (s.length > 0 && s[0] === '#') {
+			// Ignore lines that are comments and not test comments (only one #)
+			if (/^[\s]*#[^#]*$/.test(s)) {
 				continue;
 			}
 			let col = model.getLineMaxColumn(line);
