@@ -18,7 +18,6 @@ MAX_TIME = 2500
 current_test = None
 current_exp = None
 
-
 # from PIL import Image
 
 def add_html_escape(html):
@@ -435,6 +434,7 @@ class TestLine:
 def compute_runtime_data(lines, writes, values, test_comments):
 	global current_test
 	global current_exp
+
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -469,6 +469,7 @@ def compute_runtime_data(lines, writes, values, test_comments):
 
 		current_test = test_src
 		current_exp = expected_value
+
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
 			test_time = l.time - 2
