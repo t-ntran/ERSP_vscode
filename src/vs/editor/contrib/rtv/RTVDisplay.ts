@@ -687,9 +687,6 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 	private isEmptyLine(): boolean {
 		let lineContent = this._controller.getLineContent(this.lineNumber).trim();
-		if (this.lineNumber > 28) {
-			console.log(lineContent);
-		}
 		return lineContent.trim().length === 0;
 	}
 
@@ -702,7 +699,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 	private isConditionalLine(): boolean {
 		let lineContent = this._controller.getLineContent(this.lineNumber).trim();
 		return lineContent.endsWith(':') &&
-			(lineContent.startsWith('if') ||
+			(lineContent.startsWith('if') || lineContent.startsWith('elif') ||
 				lineContent.startsWith('else'));
 	}
 
@@ -1035,7 +1032,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		}
 
 		let envs = this._allEnvs;
-		console.log({ envs });
+		// console.log({ envs });
 
 		// Compute set of vars in all envs
 		this._allVars = new Set<string>();
@@ -1187,12 +1184,12 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 
 			let cellBackground: string | undefined = undefined;
 			if (testEmpty === true) {
-				cellBackground = '#705d00';  //846d00
+				cellBackground = '#ffffdd'; //'#705d00';  //846d00
 			}
 			else if (testPassed === true) {
-				cellBackground = '#004000';
+				cellBackground = '#ddffdd'; // '#004000';
 			} else if (testPassed === false) {
-				cellBackground = '#800000';
+				cellBackground = '#ffdddd'; // '#800000';
 			}
 
 			vars.forEach((v: string) => {
@@ -1208,7 +1205,7 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 				}
 
 				if (v === 'exp' && testEmpty === true) {
-					v_str = '?';
+					v_str = '?'; // '❔';
 				}else if (v === 'exp' && testPassed === true) {
 					v_str = '✅';
 				} else if (varEnv[v] === undefined) {
@@ -1569,11 +1566,13 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 		this._zoom = zoom_lower + (zoom_upper - zoom_lower) * this._controller.zoomLevel;
 
 		this._opacity = 1;
+		/*
 		if (distAbs !== 0) {
 			let opacity_upper = 1;
 			let opacity_lower = 1 / distAbs;
 			this._opacity = opacity_lower + (opacity_upper - opacity_lower) * this._controller.opacityLevel;
 		}
+		*/
 		this._opacity = this._opacity * opacityMult;
 		this._line.setOpacity(this._opacity);
 	}
@@ -3538,7 +3537,7 @@ const configurations: IConfigurationNode = {
 		},
 		[showBoxAtLoopStmtKey]: {
 			'type': 'boolean',
-			'default': false,
+			'default': true,
 			'description': localize('rtv.showboxatloop', 'Controls whether boxes are displayed at loop statements')
 		},
 		[showBoxAtEmptyLineKey]: {

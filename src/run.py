@@ -7,6 +7,10 @@ import types
 
 from core import *
 
+# This is a terrible, horrible, no good, very bad hack
+current_test = None
+current_exp = None
+
 
 # from PIL import Image
 
@@ -242,8 +246,15 @@ class Logger(bdb.Bdb):
 		else:
 			r = format_exception(self.exception)
 			rv_name = "Exception Thrown"
-		if r != None and (frame.f_code.co_name != "<module>" or self.exception != None):
-			self.data_at("R" + str(adjusted_lineno))[-1][rv_name] = r
+		if r != None:
+			if frame.f_code.co_name != "<module>" or self.exception != None:
+				self.data_at("R" + str(adjusted_lineno))[-1][rv_name] = r
+			if self.exception != None and self.lines[adjusted_lineno].lstrip().startswith("return"):
+				# No good, very bad hack
+				# Only show test and expected value if an exception occurs and we are already on a return line,
+				# since we have room for the test and exp columns in that case
+				self.data_at("R" + str(adjusted_lineno))[-1]["test"] = current_test
+				self.data_at("R" + str(adjusted_lineno))[-1]["exp"] = current_exp
 		self.record_loop_end(frame, adjusted_lineno)
 
 	def pretty_print_data(self):
@@ -369,6 +380,9 @@ class TestLine:
 
 
 def compute_runtime_data(lines, values, test_comments):
+	global current_test
+	global current_exp
+
 	exception = None
 	if len(lines) == 0:
 		return ({}, exception)
@@ -391,7 +405,7 @@ def compute_runtime_data(lines, values, test_comments):
 		except Exception as e:
 			print(e)
 
-	exp_values=[]
+	test_results=[]
 	for test in tests:
 		expected_value = 'No_expected_value_given_needs_to_be_added_later'
 		test_src = ast.unparse(test.actual)
@@ -401,11 +415,14 @@ def compute_runtime_data(lines, values, test_comments):
 			except Exception as e:
 				pass
 
+		current_test = test_src
+		current_exp = expected_value
+
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
 			test_time = l.time - 1
 			print(f"test time: {test_time}, test: {test.text}")
-			exp_values.append((test_time, expected_value, test_src))
+			test_results.append((test_time, expected_value, test_src))
 		except Exception as e:
 			test_time = l.time - 1
 			func_lineno = None
@@ -425,7 +442,7 @@ def compute_runtime_data(lines, values, test_comments):
 
 	l.data = adjust_to_next_time_step(l.data, l.lines)
 	remove_frame_data(l.data)
-	return (l.data, exception, exp_values)
+	return (l.data, exception, test_results)
 
 def adjust_to_next_time_step(data, lines):
 	envs_by_time = {}
@@ -478,18 +495,18 @@ def main(file, values_file = None):
 
 	return_code = 0
 	run_time_data = {}
-	exp_values = {}
+	test_results = {}
 
 	(writes, exception) = compute_writes(lines)
 
 	if exception != None:
 		return_code = 1
 	else:
-		(run_time_data, exception, exp_values) = compute_runtime_data(lines, values, test_comments)
+		(run_time_data, exception, test_results) = compute_runtime_data(lines, values, test_comments)
 		if (exception != None):
 			return_code = 2
 
-	for test_result in exp_values:
+	for test_result in test_results:
 		for env in get_envs_by_time(run_time_data, test_result[0]):
 			env["exp"] = test_result[1]
 			env["test"] = test_result[2]
