@@ -229,7 +229,7 @@ class Logger(bdb.Bdb):
 					frame.f_locals.update({ varname: new_value })
 					ctypes.pythonapi.PyFrame_LocalsToFast(ctypes.py_object(frame), ctypes.c_int(0))
 
-		if self.time >= MAX_TIME
+		if self.time >= MAX_TIME:
 			self.set_quit()
 			return
 		env = {}
