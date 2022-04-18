@@ -3,9 +3,13 @@ import bdb
 import ctypes
 import json
 import sys
+import traceback
 import types
 
 from core import *
+
+# Execution limit to prevent infinite loops
+MAX_TIME = 500
 
 # This is a terrible, horrible, no good, very bad hack
 current_test = None
@@ -196,7 +200,7 @@ class Logger(bdb.Bdb):
 					frame.f_locals.update({ varname: new_value })
 					ctypes.pythonapi.PyFrame_LocalsToFast(ctypes.py_object(frame), ctypes.c_int(0))
 
-		if self.time >= 100:
+		if self.time >= MAX_TIME:
 			self.set_quit()
 			return
 		env = {}
@@ -265,6 +269,8 @@ class Logger(bdb.Bdb):
 
 
 def format_exception(exception):
+	# Show full exception traceback (useful for debugging)
+	# return repr(exception) + "\n" + "".join(traceback.format_tb(exception.__traceback__))
 	html = add_red_format(exception.__class__.__name__ + ": " + str(exception))
 	return add_html_escape(html)
 
