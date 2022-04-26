@@ -5,8 +5,8 @@
 # the input is a valid IPv4 address, return the corresponding list of
 # integers. Otherwise, return None.
 #
-# Example 1: '22.4.5' => None
-# Example 2: '1.2.3.4' => [1, 2, 3, 4]
+# '22.4.5' => None
+# '1.2.3.4' => [1, 2, 3, 4]
 
 # Write unit tests for the examples above before you write your code.
 def parse_ipv4(s):
