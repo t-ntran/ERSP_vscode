@@ -2,11 +2,10 @@
 #
 # 'abc|def'
 #
-# The '|' character represents the cursor, and the other characters
-# are the text inside the box. Depending on the key that the user
-# presses, you want to update the text box. For example, if the user
-# presses 'backspace', you want to delete the character to the left of
-# the cursor:
+# The '|' character is the cursor, and the other characters are the text
+# inside the box. Depending on the key that the user presses, you want
+# to update the text box. For example, if the user presses 'backspace',
+# you want to delete the character to the left of the cursor:
 #
 # 'abc|def', 'backspace' => 'ab|def'
 # 
