@@ -12,8 +12,8 @@
 
 ## initials('Ada Lovelace') == 'AL'
 def initials(name):
-    parts = name.split()
-    letters = ""
+    parts = name.split(' ')
+    letters = ''
     for part in parts:
         letters += part[0]
     return letters
@@ -29,9 +29,9 @@ def initials(name):
 #
 # 1. Find the line for the first test, and add a # at the start of the
 #    line to select it.
-# 2. Remove a # from the first test, and add a # to the second test. If
+# 2. Remove a # from the first test, and add a # to the second test. (If
 #    you forget to remove the extra # from the first test, both tests
-#    will be selected, so they will both appear.
+#    will be selected, so they will both appear.)
 # 3. Select only the third test.
 # 4. Deselect all tests.
 # 5. Find the two Projection Boxes with the test results in them. The
@@ -56,15 +56,17 @@ def factorial(n):
 
 
 # If an exception occurs on a certain line, the exception will appear in
-# that line's Projection Box. Since no return statement is reached, the
-# test results are shown on the first line of the function instead.
+# that line's Projection Box. We can't show the test results on the
+# return statement, because no return statement is reached. Instead, the
+# test results are shown on the function header. This is the line that
+# looks like "def my_function(arg1, arg2):".
 #
-# 1. Check the Projection Box on the first line to identify which unit
+# 1. Check the Projection Box on the function header to identify which
 #    test has an exception.
 # 2. Find the line where that unit test is written, and select that test
 #    by adding a #.
 # 3. Fix the code so that the unit test passes. If you're not sure what
-#    the function should return in that case, the expected value is
+#    the function should return, refer to the expected value which is
 #    written in the unit test.
 # 4. Deselect that unit test to make sure the other test still passes.
 
@@ -87,20 +89,48 @@ def average(nums):
 
 
 
-# By default, Projection Boxes are only shown on executed statements.
-# To show Projection Boxes on if/elif/else lines, add a # at the end of
-# the line.
+# Projection Boxes also appear when you call a function from another
+# function. In this example, the shout_last function calls the shout
+# function, so we get Projection Boxes in the shout function too.
+#
+# 1. Explain why the unit test for shout_last is failing.
+# 2. Fix the code so that the unit test passes.
+# 3. Write a unit test for shout, and one more unit test for shout_last.
+# 4. Practice selecting each of the three unit tests, and observe how
+#    the Projection Boxes in the shout function change.
+# 5. Deselect all three tests.
+
+
+def shout(s):
+    uppercase = s.upper()
+    return uppercase + '?'
+
+
+## shout_last('oh hi') == 'oh HI!'
+def shout_last(words):
+    split = words.split(' ')
+    split[-1] = shout(split[-1])
+    return ' '.join(split)
+
+
+
+
+
+# By default, Projection Boxes are not shown on if/elif/else lines. To
+# show Projection Boxes on these lines as well, add a # at the end of
+# the line, after the colon.
 #
 # 1. Add a # at the end of the if statement, after the colon. This will
-#    show every loop iteration, even though no statements are executed
-#    inside the loop.
-# 2. How many loop iterations are there?
+#    show every execution of the if statement.
+# 2. Refer to the Projection Box you just added. Why is the body of the
+#    if statement never executed?
+# 3. How many loop iterations are there?
 
 ## only_positive([-1, -5, 0]) == []
 def only_positive(nums):
     positive = []
     for num in nums:
-        if num > 0:
+        if num > 0:#
             positive.append(num)
     return positive
 
