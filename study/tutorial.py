@@ -56,19 +56,21 @@ def factorial(n):
 
 
 # If an exception occurs on a certain line, the exception will appear in
-# that line's Projection Box. We can't show the test results on the
-# return statement, because no return statement is reached. Instead, the
-# test results are shown on the function header. This is the line that
-# looks like "def my_function(arg1, arg2):".
+# that line's Projection Box.
+#
+# We can't show the test results on the return statement, because no
+# return statement is reached. Instead, the test results are shown on
+# the function header. (This is the line that starts with "def".)
 #
 # 1. Check the Projection Box on the function header to identify which
 #    test has an exception.
 # 2. Find the line where that unit test is written, and select that test
 #    by adding a #.
-# 3. Fix the code so that the unit test passes. If you're not sure what
+# 3. Use the Projection Boxes to determine why the exception occurs.
+# 4. Fix the code so that the unit test passes. If you're not sure what
 #    the function should return, refer to the expected value which is
 #    written in the unit test.
-# 4. Deselect that unit test to make sure the other test still passes.
+# 5. Deselect that unit test to make sure the other test still passes.
 
 
 
