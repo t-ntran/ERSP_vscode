@@ -72,9 +72,6 @@ def factorial(n):
 #    written in the unit test.
 # 5. Deselect that unit test to make sure the other test still passes.
 
-
-
-
 ## average([3, 4, 5]) == 4
 ## average([]) == None
 def average(nums):
@@ -102,7 +99,6 @@ def average(nums):
 #    the Projection Boxes in the shout function change.
 # 5. Deselect all three tests.
 
-
 def shout(s):
     uppercase = s.upper()
     return uppercase + '?'
@@ -118,14 +114,16 @@ def shout_last(words):
 
 
 
+
+
 # By default, Projection Boxes are not shown on if/elif/else lines. To
 # show Projection Boxes on these lines as well, add a # at the end of
 # the line, after the colon.
 #
 # 1. Add a # at the end of the if statement, after the colon. This will
 #    show every execution of the if statement.
-# 2. Refer to the Projection Box you just added. Why is the body of the
-#    if statement never executed?
+# 2. Why is the body of the if statement never executed? The Projection
+#    Box you just added might be helpful.
 # 3. How many loop iterations are there?
 
 ## only_positive([-1, -5, 0]) == []
@@ -140,4 +138,4 @@ def only_positive(nums):
 
 
 
-# Congratulations! Now you know how to use PBUnit.
+# Congratulations! Now you are ready to use PBUnit.
