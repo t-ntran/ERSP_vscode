@@ -7,7 +7,7 @@
 
 
 def parse_dot_decimal(s):
-    parts = s.split(".")
+    parts = s.split('.')
     nums = []
     for part in parts:
         nums.append(int(part))
