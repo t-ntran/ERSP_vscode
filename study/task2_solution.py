@@ -24,12 +24,22 @@
 # Write unit tests for the textbox function and fix the three bugs.
 # Feel free to copy the test cases above, and write your own as well.
 
-
+## textbox('abc|def', 'right') == 'abcd|ef'
+## textbox('abcdef|', 'right') == 'abcdef|'
+## textbox('|def', 'left') == '|def'
+## textbox('abc|def', 'left') == 'ab|cdef'
+## textbox('abc|def', 'z') == 'abcz|def'
 def textbox(current, key):
     left, right = current.split('|')
     if key == 'right':
         # Move one char from right to left
+        if right == '':
+            return current
         return left + right[0] + '|' + right[1:]
+    elif key == 'left':
+        if left == '':
+            return current
+        return left[:-1] + '|' + left[-1] + right
     else:
         # Insert char before cursor
-        return left + key + right
+        return left + key + '|' + right

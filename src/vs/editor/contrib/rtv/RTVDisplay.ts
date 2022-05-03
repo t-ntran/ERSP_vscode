@@ -1192,6 +1192,8 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 				cellBackground = '#ffdddd'; // '#800000';
 			}
 
+			// Don't add empty rows to the Projection Boxes
+			let rowEmpty = true;
 			vars.forEach((v: string) => {
 				let v_str: string;
 				let varName = v;
@@ -1216,6 +1218,10 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 					v_str = '```python\n' + varEnv[v] + '\n```';
 				}
 
+				if (v_str !== '') {
+					rowEmpty = false;
+				}
+
 				const background = v === 'test' ? cellBackground : undefined;
 				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, background, varName, varEnv));
 			});
@@ -1230,7 +1236,9 @@ export class RTVDisplayBox implements IRTVDisplayBox {
 				}
 				row.push(new TableElement(v_str, loopID, iter, this.lineNumber, undefined, v, env, i === 0));
 			});
-			rows.push(row);
+			if (!rowEmpty) {
+				rows.push(row);
+			}
 		}
 
 		// Set border
