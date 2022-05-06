@@ -92,16 +92,14 @@ def average(nums):
 # function. In this example, the shout_last function calls the shout
 # function, so we get Projection Boxes in the shout function too.
 #
-# 1. Explain why the unit test for shout_last is failing.
-# 2. Fix the code so that the unit test passes.
-# 3. Write a unit test for shout, and one more unit test for shout_last.
-# 4. Practice selecting each of the three unit tests, and observe how
-#    the Projection Boxes in the shout function change.
-# 5. Deselect all three tests.
+# 1. Click every line and see if you can figure out where each executed
+#    line comes from. If you're not sure, try selecting each test case.
 
+
+## shout('oops') == 'OOPS!'
 def shout(s):
     uppercase = s.upper()
-    return uppercase + '?'
+    return uppercase + '!'
 
 
 ## shout_last('oh hi') == 'oh HI!'
@@ -126,7 +124,7 @@ def shout_last(words):
 #    Box you just added might be helpful.
 # 3. How many loop iterations are there?
 
-## only_positive([-1, -5, 0]) == []
+## only_positive([-1, -5, -3]) == []
 def only_positive(nums):
     positive = []
     for num in nums:
