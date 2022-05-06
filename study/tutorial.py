@@ -128,7 +128,7 @@ def shout_last(words):
 def only_positive(nums):
     positive = []
     for num in nums:
-        if num > 0:#
+        if num > 0:
             positive.append(num)
     return positive
 
