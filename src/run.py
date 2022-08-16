@@ -246,7 +246,7 @@ class Logger(bdb.Bdb):
 					env[k] = r
 		env["lineno"] = lineno
 
-		if self.matplotlib_state_change:
+				if self.matplotlib_state_change:
 			env["Plot"] = add_html_escape(matplotlib_fig_as_html())
 			self.matplotlib_state_change = False
 
@@ -444,6 +444,38 @@ def compute_runtime_data(lines, writes, values, test_comments):
 		l.run(code)
 	except Exception as e:
 		exception = e
+
+	#print(l.data)
+	#filtering variable for each line
+	"""
+	for line_num in range(len(l.lines)):
+		keywords = set(['frame', 'time', '#', '$', 'lineno', 'func_lineno', 'next_lineno', 'prev_lineno','Exception Thrown'])
+		for num in l.data:
+			if 'begin_loop' in l.data[num][0] or 'end_loop' in l.data[num][0]:
+				continue
+			for var in l.data[num][0]:
+				if l.data[num][0]['lineno'] == line_num + 1:
+					if l.lines[line_num].find(str(var)) != -1:
+						keywords.add(var)
+				elif l.data[num][0]['lineno'] == 'R' + str(line_num):
+					if l.lines[line_num].find(str(var)) != -1:
+						keywords.add(var)
+				else:
+					continue
+
+			if l.data[num][0]['lineno'] == line_num + 1:
+				for keys in l.data[num][0].copy():
+					if keys not in keywords:
+						del l.data[num][0][str(keys)]
+				break
+			elif l.data[num][0]['lineno'] == 'R' + str(line_num):
+				for keys in l.data[num][0].copy():
+					if keys not in keywords:
+						del l.data[num][0][str(keys)]
+			else:
+				continue
+	"""
+
 
 	# Only show runtime data from test cases, not top-level executions
 	if len(test_comments) > 0:
