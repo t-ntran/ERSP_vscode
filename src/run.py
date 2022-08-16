@@ -1,10 +1,12 @@
 import ast
 import bdb
+from copy import deepcopy
 import ctypes
 import json
 import sys
 import traceback
 import types
+import re
 
 from core import *
 
@@ -187,6 +189,45 @@ class Logger(bdb.Bdb):
 
 	def record_env(self, frame, lineno):
 		line_time = "(%s,%d)" % (lineno, self.time)
+		print("Recording env for line " + str(lineno) + " at time " + str(self.time))
+
+		vars = []
+		adjusted_lineno = 0
+		if str(lineno).find('R') != -1:
+			adjusted_lineno = remove_R(lineno)
+		else:
+			adjusted_lineno = lineno -1
+		print("adjusted_lineno = " + str(adjusted_lineno))
+		if adjusted_lineno >= 0:
+			print("Line: " + self.lines[adjusted_lineno])
+			if (str(self.lines[adjusted_lineno].strip()).find("for") != -1
+				or str(self.lines[adjusted_lineno].strip()).find("while") != -1):
+				try:
+					code = "".join(self.lines)
+					tree = ast.parse(code)
+					for node in ast.walk(tree):
+						if isinstance(node, (ast.For, ast.While)):
+							vars.append(node.target.id)
+							for b in node.body:
+								if isinstance(b, ast.AugAssign):
+									vars.append(b.target.id)
+									break
+					#print("Vars: " + str(vars))
+				except SyntaxError as e:
+					print("Error: " + str(e))
+					#return e.msg
+			else:
+				try:
+					tree = ast.parse(self.lines[adjusted_lineno].strip())
+					#print(ast.dump(tree))
+					vars = sorted({node.id for node in ast.walk(tree) if isinstance(node, ast.Name)})
+					#print("Vars: " + str(vars))
+				except SyntaxError as e:
+					print("Error: " + str(e))
+					#return e.msg
+		print ("Vars: " + str(vars))
+
+
 		if line_time in self.values:
 			# Replace the current values with the given ones first
 			print('%s:' % line_time)
@@ -207,15 +248,20 @@ class Logger(bdb.Bdb):
 		env["frame"] = frame
 		env["time"] = self.time
 		self.add_loop_info(env)
+
 		self.time = self.time + 1
 		for k in frame.f_locals:
+			#print("\t'%s': '%s'" % (k, repr(frame.f_locals[k])))
 			if k != magic_var_name and (frame.f_code.co_name != "<module>" or not k in self.preexisting_locals):
-				r = self.compute_repr(frame.f_locals[k])
-				if (r != None):
-					env[k] = self.compute_repr(frame.f_locals[k])
+					r = self.compute_repr(frame.f_locals[k])
+					print("\t'%s': '%s'" % (k, r))
+					if (r != None):
+						if k in vars or vars is []:
+							env[k] = self.compute_repr(frame.f_locals[k])
 		env["lineno"] = lineno
 		env["func_lineno"] = str(frame.f_code.co_firstlineno)
 
+		print("\tenv:" + str(env))
 		self.data_at(lineno).append(env)
 
 		if (self.prev_env != None):
@@ -394,10 +440,43 @@ def compute_runtime_data(lines, values, test_comments):
 		return ({}, exception)
 	code = "".join(lines)
 	l = Logger(lines, values)
+	print("Before: " + str(l.data))
 	try:
 		l.run(code)
 	except Exception as e:
 		exception = e
+
+	#print(l.data)
+	#filtering variable for each line
+	"""
+	for line_num in range(len(l.lines)):
+		keywords = set(['frame', 'time', '#', '$', 'lineno', 'func_lineno', 'next_lineno', 'prev_lineno','Exception Thrown'])
+		for num in l.data:
+			if 'begin_loop' in l.data[num][0] or 'end_loop' in l.data[num][0]:
+				continue
+			for var in l.data[num][0]:
+				if l.data[num][0]['lineno'] == line_num + 1:
+					if l.lines[line_num].find(str(var)) != -1:
+						keywords.add(var)
+				elif l.data[num][0]['lineno'] == 'R' + str(line_num):
+					if l.lines[line_num].find(str(var)) != -1:
+						keywords.add(var)
+				else:
+					continue
+
+			if l.data[num][0]['lineno'] == line_num + 1:
+				for keys in l.data[num][0].copy():
+					if keys not in keywords:
+						del l.data[num][0][str(keys)]
+				break
+			elif l.data[num][0]['lineno'] == 'R' + str(line_num):
+				for keys in l.data[num][0].copy():
+					if keys not in keywords:
+						del l.data[num][0][str(keys)]
+			else:
+				continue
+	"""
+
 
 	# Only show runtime data from test cases, not top-level executions
 	if len(test_comments) > 0:
@@ -519,6 +598,7 @@ def main(file, values_file = None):
 
 	with open(file + ".out", "w") as out:
 		out.write(json.dumps((return_code, writes, run_time_data)))
+		print(f"wrote {file}.out")
 
 	if exception != None:
 		raise exception
