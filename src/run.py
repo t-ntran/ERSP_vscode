@@ -267,11 +267,10 @@ class Logger(bdb.Bdb):
 		for k in frame.f_locals:
 			#print("\t'%s': '%s'" % (k, repr(frame.f_locals[k])))
 			if k != magic_var_name and (frame.f_code.co_name != "<module>" or not k in self.preexisting_locals):
-					r = self.compute_repr(frame.f_locals[k])
-					print("\t'%s': '%s'" % (k, r))
-					if (r != None):
-						#if k in vars or vars is []:
-							env[k] = r
+				r = self.compute_repr(frame.f_locals[k])
+				if (r != None):
+					#if k in vars or vars is []:
+					env[k] = r
 		env["lineno"] = lineno
 		env["func_lineno"] = str(frame.f_code.co_firstlineno)
 
