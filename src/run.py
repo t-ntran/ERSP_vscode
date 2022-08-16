@@ -244,7 +244,7 @@ class Logger(bdb.Bdb):
 					r = self.compute_repr(frame.f_locals[k])
 					print("\t'%s': '%s'" % (k, r))
 					if (r != None):
-						env[k] = r
+							env[k] = r
 		env["lineno"] = lineno
 
 		if self.matplotlib_state_change:
