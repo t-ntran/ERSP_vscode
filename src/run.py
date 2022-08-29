@@ -11,7 +11,7 @@ import re
 from core import *
 
 # Execution limit to prevent infinite loops
-MAX_TIME = 500
+MAX_TIME = 1000
 
 # This is a terrible, horrible, no good, very bad hack
 current_test = None
@@ -56,15 +56,17 @@ class LoopInfo:
 
 
 class Logger(bdb.Bdb):
-	def __init__(self, lines, values = []):
+	def __init__(self, lines, writes, values = []):
 		bdb.Bdb.__init__(self)
 		self.lines = lines
+		self.writes = writes
 		self.time = 0
 		self.prev_env = None
 		self.data = {}
 		self.active_loops = []
 		self.preexisting_locals = None
 		self.exception = None
+		self.matplotlib_state_change = False
 
 		# Optional dict from (lineno, time) to a dict of varname: value
 		self.values = values
@@ -73,6 +75,11 @@ class Logger(bdb.Bdb):
 		if l not in self.data:
 			self.data[l] = []
 		return self.data[l]
+	def user_call(self, frame, args):
+		if not ("__name__" in frame.f_globals):
+			return
+		if frame.f_globals["__name__"] == "matplotlib.pyplot":
+			self.matplotlib_state_change = True
 
 	def user_line(self, frame):
 		# print("user_line ============================================")
@@ -92,7 +99,15 @@ class Logger(bdb.Bdb):
 		if frame.f_code.co_name == "<module>" and self.preexisting_locals == None:
 			self.preexisting_locals = set(frame.f_locals.keys())
 
-		if frame.f_code.co_name == "<listcomp>" or frame.f_code.co_name == "<dictcomp>" or frame.f_code.co_filename != "<string>":
+		if frame.f_code.co_name == "<listcomp>":
+			return
+		if frame.f_code.co_name == "<dictcomp>":
+			return
+		if frame.f_code.co_name == "<lambda>":
+			return
+		if not ("__name__" in frame.f_globals):
+			return
+		if frame.f_globals["__name__"] != "__main__":
 			return
 
 		self.exception = None
@@ -180,12 +195,11 @@ class Logger(bdb.Bdb):
 			return None
 		if isinstance(v, types.ModuleType):
 			return None
-		return repr(v)
-		# html = if_img_convert_to_html(v)
-		# if html == None:
-		# 	return repr(v)
-		# else:
-		# 	return add_html_escape(html)
+		html = if_img_convert_to_html(v)
+		if html == None:
+			return repr(v)
+		else:
+			return add_html_escape(html)
 
 	def record_env(self, frame, lineno):
 		line_time = "(%s,%d)" % (lineno, self.time)
@@ -256,12 +270,21 @@ class Logger(bdb.Bdb):
 					r = self.compute_repr(frame.f_locals[k])
 					print("\t'%s': '%s'" % (k, r))
 					if (r != None):
-						if k in vars or vars is []:
-							env[k] = self.compute_repr(frame.f_locals[k])
+						#if k in vars or vars is []:
+							env[k] = r
 		env["lineno"] = lineno
 		env["func_lineno"] = str(frame.f_code.co_firstlineno)
 
-		print("\tenv:" + str(env))
+		if self.matplotlib_state_change:
+			env["Plot"] = add_html_escape(matplotlib_fig_as_html())
+			self.matplotlib_state_change = False
+
+			if self.prev_env != None:
+				prev_lineno = remove_R(self.prev_env["lineno"])
+				if not (prev_lineno in self.writes):
+					self.writes[prev_lineno] = []
+				self.writes[prev_lineno].append("Plot")
+
 		self.data_at(lineno).append(env)
 
 		if (self.prev_env != None):
@@ -284,7 +307,16 @@ class Logger(bdb.Bdb):
 		# print("locals")
 		# print(frame.f_locals)
 
-		if frame.f_code.co_name == "<listcomp>" or frame.f_code.co_name == "<dictcomp>" or frame.f_code.co_filename != "<string>":
+		if frame.f_code.co_name == "<listcomp>":
+			return
+		if frame.f_code.co_name == "<dictcomp>":
+			return
+		if frame.f_code.co_name == "<lambda>":
+			return
+
+		if not ("__name__" in frame.f_globals):
+			return
+		if frame.f_globals["__name__"] != "__main__":
 			return
 
 		adjusted_lineno = frame.f_lineno-1
@@ -431,7 +463,7 @@ class TestLine:
 		self.actual, self.expected = parsed
 
 
-def compute_runtime_data(lines, values, test_comments):
+def compute_runtime_data(lines, writes, values, test_comments):
 	global current_test
 	global current_exp
 
@@ -439,8 +471,7 @@ def compute_runtime_data(lines, values, test_comments):
 	if len(lines) == 0:
 		return ({}, exception)
 	code = "".join(lines)
-	l = Logger(lines, values)
-	print("Before: " + str(l.data))
+	l = Logger(lines, writes, values)
 	try:
 		l.run(code)
 	except Exception as e:
@@ -587,7 +618,7 @@ def main(file, values_file = None):
 	if exception != None:
 		return_code = 1
 	else:
-		(run_time_data, exception, test_results) = compute_runtime_data(lines, values, test_comments)
+		(run_time_data, exception, test_results) = compute_runtime_data(lines, writes, values, test_comments)
 		if (exception != None):
 			return_code = 2
 
