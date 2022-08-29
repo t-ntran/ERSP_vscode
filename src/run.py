@@ -218,7 +218,7 @@ class Logger(bdb.Bdb):
 					frame.f_locals.update({ varname: new_value })
 					ctypes.pythonapi.PyFrame_LocalsToFast(ctypes.py_object(frame), ctypes.c_int(0))
 
-		if self.time >= MAX_TIME:
+		if self.time >= MAX_TIME
 			self.set_quit()
 			return
 		env = {}
@@ -234,6 +234,7 @@ class Logger(bdb.Bdb):
 				if (r != None):
 					env[k] = r
 		env["lineno"] = lineno
+
 		env["func_lineno"] = str(frame.f_code.co_firstlineno)
 
 		if self.matplotlib_state_change:
@@ -245,7 +246,6 @@ class Logger(bdb.Bdb):
 				if not (prev_lineno in self.writes):
 					self.writes[prev_lineno] = []
 				self.writes[prev_lineno].append("Plot")
-
 		self.data_at(lineno).append(env)
 
 		if (self.prev_env != None):
@@ -380,7 +380,6 @@ def compute_writes(lines):
 		write_collector.visit(root)
 		writes = write_collector.data
 	return (writes, exception)
-
 
 def parse_test_line(line):
 	try:
