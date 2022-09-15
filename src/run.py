@@ -3,6 +3,7 @@ import bdb
 from copy import deepcopy
 import ctypes
 import json
+import os
 import sys
 import traceback
 import types
@@ -75,6 +76,7 @@ class Logger(bdb.Bdb):
 		if l not in self.data:
 			self.data[l] = []
 		return self.data[l]
+
 	def user_call(self, frame, args):
 		if not ("__name__" in frame.f_globals):
 			return
@@ -108,6 +110,11 @@ class Logger(bdb.Bdb):
 		if not ("__name__" in frame.f_globals):
 			return
 		if frame.f_globals["__name__"] != "__main__":
+			return
+		# When __qualname__ exists as a local, it means we are executing
+		# the method/field definitions inside a class, so we should
+		# not process these.
+		if "__qualname__" in frame.f_locals:
 			return
 
 		self.exception = None
@@ -195,9 +202,14 @@ class Logger(bdb.Bdb):
 			return None
 		if isinstance(v, types.ModuleType):
 			return None
+		if isinstance(v, type):
+			return None
 		html = if_img_convert_to_html(v)
 		if html == None:
-			return repr(v)
+			try:
+				return repr(v)
+			except:
+				return "Repr exception " + str(type(v))
 		else:
 			return add_html_escape(html)
 
@@ -274,10 +286,11 @@ class Logger(bdb.Bdb):
 			return
 		if frame.f_code.co_name == "<lambda>":
 			return
-
 		if not ("__name__" in frame.f_globals):
 			return
 		if frame.f_globals["__name__"] != "__main__":
+			return
+		if "__qualname__" in frame.f_locals:
 			return
 
 		adjusted_lineno = frame.f_lineno-1
@@ -575,6 +588,10 @@ def get_envs_by_time(data, time):
 
 
 if __name__ == '__main__':
+	# The following adds the current working directory to the path
+	# so that imports look at the current working directory.
+	# (by default they look at the directory of the script)
+	sys.path.append(os.getcwd())
 	if len(sys.argv) > 2:
 		main(sys.argv[1], sys.argv[2])
 	else:

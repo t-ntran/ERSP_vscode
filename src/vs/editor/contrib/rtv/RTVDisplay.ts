@@ -48,6 +48,7 @@ import { attachButtonStyler } from 'vs/platform/theme/common/styler';
 // import { RTVSynth } from './RTVSynth';
 import { RTVSynthController } from 'vs/editor/contrib/rtv/RTVSynthController';
 import { Emitter, Event } from 'vs/base/common/event';
+import * as path from 'path';
 
 function indent(s: string): number {
 	return s.length - s.trimLeft().length;
@@ -2042,6 +2043,16 @@ export class RTVController implements IRTVController {
 		return model.getLineContent(lineNumber);
 	}
 
+	private getCWD(): string | undefined {
+		let model = this.getModelForce();
+		let uri = model.uri;
+		if (uri.scheme !== 'file') {
+			return undefined;
+		} else {
+			let p = uri.fsPath;
+			return p.substring(0, p.lastIndexOf(path.sep));
+		}
+	}
 	// private getLangId(): LangId {
 	// 	let model = this._editor.getModel();
 	// 	if (model === null) {
@@ -2768,7 +2779,7 @@ export class RTVController implements IRTVController {
 		}
 
 		this.logger.projectionBoxUpdateStart(program);
-		this.pythonProcess = this.utils.runProgram(program);
+		this.pythonProcess = this.utils.runProgram(program, this.getCWD());
 
 		let runResults: RunResult = await this.pythonProcess;
 		const outputMsg = runResults.stdout;
@@ -3150,6 +3161,11 @@ export class RTVController implements IRTVController {
 				this.changeToFullView(1);
 				break;
 		}
+	}
+
+	public flipModVars() {
+		this.displayOnlyModifiedVars = !(this.displayOnlyModifiedVars);
+		this.updateContentAndLayout();
 	}
 
 	public flipZoom() {
@@ -3722,30 +3738,30 @@ function createRTVAction(id: string, name: string, key: number, label: string, c
 // 	});
 // }
 
+createRTVAction(
+	'rtv.flipview',
+	'Flip View Mode',
+	KeyMod.Alt | KeyCode.Enter,
+	localize('rtv.flipview', 'Flip View Mode'),
+	(c) => {
+		c.flipThroughViewModes();
+	}
+);
+
 // createRTVAction(
-// 	'rtv.flipview',
-// 	'Flip View Mode',
+// 	'rtv.quickflip',
+// 	'Flip Between Full View and Cursor View',
 // 	KeyMod.Alt | KeyCode.Enter,
-// 	localize('rtv.flipview', 'Flip View Mode'),
+// 	localize('rtv.quickflip', 'Flip Between Full View and Cursor View'),
 // 	(c) => {
-// 		c.flipThroughViewModes();
+// 		c.flipBetweenFullAndCursor();
 // 	}
 // );
 
 createRTVAction(
-	'rtv.quickflip',
-	'Flip Between Full View and Cursor View',
-	KeyMod.Alt | KeyCode.Enter,
-	localize('rtv.quickflip', 'Flip Between Full View and Cursor View'),
-	(c) => {
-		c.flipBetweenFullAndCursor();
-	}
-);
-
-createRTVAction(
 	'rtv.fullview',
 	'Full View',
-	KeyMod.Alt | KeyCode.KEY_1,
+	KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.KEY_1,
 	localize('rtv.fullview', 'Full View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Full);
@@ -3755,7 +3771,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.cursorview',
 	'Cursor and Return View',
-	KeyMod.Alt | KeyCode.KEY_2,
+	KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.KEY_2,
 	localize('rtv.cursorview', 'Cursor and Return View'),
 	(c) => {
 		c.changeViewMode(ViewMode.CursorAndReturn);
@@ -3765,7 +3781,7 @@ createRTVAction(
 createRTVAction(
 	'rtv.compactview',
 	'Compact View',
-	KeyMod.Alt | KeyCode.KEY_3,
+	KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.KEY_3,
 	localize('rtv.compactview', 'Compact View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Compact);
@@ -3775,10 +3791,20 @@ createRTVAction(
 createRTVAction(
 	'rtv.stealthview',
 	'Stealth View',
-	KeyMod.Alt | KeyCode.KEY_4,
+	KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.KEY_4,
 	localize('rtv.stealthview', 'Stealth View'),
 	(c) => {
 		c.changeViewMode(ViewMode.Stealth);
+	}
+);
+
+createRTVAction(
+	'rtv.flipmodvars',
+	'Flip Mod Vars',
+	KeyMod.Alt | KeyMod.CtrlCmd | KeyCode.KEY_0,
+	localize('rtv.flipmodvars', 'Flip Mod Vars'),
+	(c) => {
+		c.flipModVars();
 	}
 );
 
