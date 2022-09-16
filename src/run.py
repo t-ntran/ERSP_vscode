@@ -241,10 +241,9 @@ class Logger(bdb.Bdb):
 		for k in frame.f_locals:
 			#print("\t'%s': '%s'" % (k, repr(frame.f_locals[k])))
 			if k != magic_var_name and (frame.f_code.co_name != "<module>" or not k in self.preexisting_locals):
-					r = self.compute_repr(frame.f_locals[k])
-					print("\t'%s': '%s'" % (k, r))
-					if (r != None):
-							env[k] = r
+				r = self.compute_repr(frame.f_locals[k])
+				if (r != None):
+					env[k] = r
 		env["lineno"] = lineno
 
 		if self.matplotlib_state_change:
