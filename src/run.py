@@ -11,7 +11,7 @@ import re
 from core import *
 
 # Execution limit to prevent infinite loops
-MAX_TIME = 1000
+MAX_TIME = 2500
 
 # This is a terrible, horrible, no good, very bad hack
 current_test = None
@@ -205,6 +205,7 @@ class Logger(bdb.Bdb):
 		line_time = "(%s,%d)" % (lineno, self.time)
 		print("Recording env for line " + str(lineno) + " at time " + str(self.time))
 
+		"""
 		vars = []
 		adjusted_lineno = 0
 		if str(lineno).find('R') != -1:
@@ -241,6 +242,7 @@ class Logger(bdb.Bdb):
 					#return e.msg
 		print ("Vars: " + str(vars))
 
+		"""
 
 		if line_time in self.values:
 			# Replace the current values with the given ones first
@@ -476,38 +478,6 @@ def compute_runtime_data(lines, writes, values, test_comments):
 	except Exception as e:
 		exception = e
 
-	#print(l.data)
-	#filtering variable for each line
-	"""
-	for line_num in range(len(l.lines)):
-		keywords = set(['frame', 'time', '#', '$', 'lineno', 'func_lineno', 'next_lineno', 'prev_lineno','Exception Thrown'])
-		for num in l.data:
-			if 'begin_loop' in l.data[num][0] or 'end_loop' in l.data[num][0]:
-				continue
-			for var in l.data[num][0]:
-				if l.data[num][0]['lineno'] == line_num + 1:
-					if l.lines[line_num].find(str(var)) != -1:
-						keywords.add(var)
-				elif l.data[num][0]['lineno'] == 'R' + str(line_num):
-					if l.lines[line_num].find(str(var)) != -1:
-						keywords.add(var)
-				else:
-					continue
-
-			if l.data[num][0]['lineno'] == line_num + 1:
-				for keys in l.data[num][0].copy():
-					if keys not in keywords:
-						del l.data[num][0][str(keys)]
-				break
-			elif l.data[num][0]['lineno'] == 'R' + str(line_num):
-				for keys in l.data[num][0].copy():
-					if keys not in keywords:
-						del l.data[num][0][str(keys)]
-			else:
-				continue
-	"""
-
-
 	# Only show runtime data from test cases, not top-level executions
 	if len(test_comments) > 0:
 		l.data = {}
@@ -579,7 +549,7 @@ def adjust_to_next_time_step(data, lines):
 				del env["show_exception_at_top"]
 				next_envs.append(env)
 			elif "time" in env:
-				next_time = env["time"]+1
+				next_time = float(env["time"])+1
 				while next_time in envs_by_time:
 					next_env = envs_by_time[next_time]
 					if "frame" in env and "frame" in next_env and env["frame"] is next_env["frame"]:
