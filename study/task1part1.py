@@ -5,6 +5,7 @@
 # '22.4.5' -> [22, 4, 5]
 
 ##parse_dot_decimal('22.4.5') == [22, 4, 5]
+##parse_dot_decimal('') == []
 
 def parse_dot_decimal(s):
     if s == '':
@@ -14,3 +15,5 @@ def parse_dot_decimal(s):
     for part in parts:
         nums.append(int(part))
     return nums
+
+##parse_dot_decimal('1.2.3') == [1, 2, 3]

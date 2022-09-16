@@ -205,45 +205,6 @@ class Logger(bdb.Bdb):
 		line_time = "(%s,%d)" % (lineno, self.time)
 		print("Recording env for line " + str(lineno) + " at time " + str(self.time))
 
-		"""
-		vars = []
-		adjusted_lineno = 0
-		if str(lineno).find('R') != -1:
-			adjusted_lineno = remove_R(lineno)
-		else:
-			adjusted_lineno = lineno -1
-		print("adjusted_lineno = " + str(adjusted_lineno))
-		if adjusted_lineno >= 0:
-			print("Line: " + self.lines[adjusted_lineno])
-			if (str(self.lines[adjusted_lineno].strip()).find("for") != -1
-				or str(self.lines[adjusted_lineno].strip()).find("while") != -1):
-				try:
-					code = "".join(self.lines)
-					tree = ast.parse(code)
-					for node in ast.walk(tree):
-						if isinstance(node, (ast.For, ast.While)):
-							vars.append(node.target.id)
-							for b in node.body:
-								if isinstance(b, ast.AugAssign):
-									vars.append(b.target.id)
-									break
-					#print("Vars: " + str(vars))
-				except SyntaxError as e:
-					print("Error: " + str(e))
-					#return e.msg
-			else:
-				try:
-					tree = ast.parse(self.lines[adjusted_lineno].strip())
-					#print(ast.dump(tree))
-					vars = sorted({node.id for node in ast.walk(tree) if isinstance(node, ast.Name)})
-					#print("Vars: " + str(vars))
-				except SyntaxError as e:
-					print("Error: " + str(e))
-					#return e.msg
-		print ("Vars: " + str(vars))
-
-		"""
-
 		if line_time in self.values:
 			# Replace the current values with the given ones first
 			print('%s:' % line_time)
@@ -271,7 +232,6 @@ class Logger(bdb.Bdb):
 			if k != magic_var_name and (frame.f_code.co_name != "<module>" or not k in self.preexisting_locals):
 				r = self.compute_repr(frame.f_locals[k])
 				if (r != None):
-					#if k in vars or vars is []:
 					env[k] = r
 		env["lineno"] = lineno
 		env["func_lineno"] = str(frame.f_code.co_firstlineno)
@@ -505,11 +465,11 @@ def compute_runtime_data(lines, writes, values, test_comments):
 
 		try:
 			actual_value = l.runeval(compile(test.actual, "", "eval"))
-			test_time = l.time - 1
+			test_time = l.time - 2
 			print(f"test time: {test_time}, test: {test.text}")
 			test_results.append((test_time, expected_value, test_src))
 		except Exception as e:
-			test_time = l.time - 1
+			test_time = l.time - 2
 			func_lineno = None
 			for env in get_envs_by_time(l.data, test_time):
 				func_lineno = int(env["func_lineno"])
